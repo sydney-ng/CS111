@@ -1,0 +1,31 @@
+NAME: Sydney Ng
+EMAIL: sydney.ng@yahoo.com
+ID: 804794021
+
+Description: 
+This project is designed to read input and output from either standard
+input and output or from a file or to a file. The following files are used: 
+1) README: contains my student info, information about the files
+I wrote, and the smoke-test cases that can be used to check the code written.
+2) lab0.c: a C file that contains all the code that will read/write from 
+files or standard input/output. 
+3) backtrace.png: a screenshot of the backtrace for the segfault
+4) breakpoint.png: a screenshot of the breakpoint and variable info for 
+the segfault
+5) Makefile: a make file that compiles the program, has tests, and can create
+A tarball
+
+Checks: 
+1) Test #1 will check the input by creating a dummy file as the input and will 
+print it to standard output. This standard output is put into a file called
+output1.txt. Then we will diff it with the original file to make sure 
+that everything gets copied.
+2) Test #2 will check the output by using the dummy file as the input and write
+Output to output.txt. Then we will diff output.txt with the original dummyfile
+to make sure that everything gets copied. 
+3) Test #3 will check the use of segfaults by causing a segfault and then 
+writing the output to a file called segmentation-og.txt. Then we will diff 
+segmentation-og.txt with the expected output string from our lab0.c file 
+to make sure that this segmentation error was indeed triggered. 
+
+  
