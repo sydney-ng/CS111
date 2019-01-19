@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
                 case 'B': break;
                 case 'V': break; 
                 case 'C': break; 
-        		default: exit(3); 
+        		default: exit(1); 
     	   }
         }
 
@@ -163,96 +163,29 @@ int main(int argc, char **argv) {
 
                 }
         }
+    // read and write the files
+    /*if (c== -1 && tracker == 2){
+        printf ("here to read and write everything \n"); 
+        while ((ret = read(input_fd, buf, sizeof(buf)-1)) != EOF ){
+          (ret2 = write(output_fd, buf, ret));
+            }
+        if (ret == -1 || ret2 ==-1){
+            close (input_fd); 
+            close (output_fd);
+            printf ("exit wrong at the end");
+            exit (1);
+            }*/ 
+        //else {
+            close (input_fd); 
+            close (output_fd); 
+            exit (0); // default exit status if everything is correct
+          //  }
+   // } 
 }
-return 0; }
-                       /* char *arg_array[argc]; 
-                        char *cmd[1];
-                        if (argc > 1){
-                            int count = 1;
-                            for(count =1 ; count < argc; count++) {
-                                printf("%s \n", argv[count]);
-                                if (count == 1){ 
-                                    new_intput_fd = atoi(argv[count]);  
-                                    printf ("new input_fd: %d", new_intput_fd); 
-                                    }
-                                else if (count == 2){ 
-                                    new_output_fd = atoi(argv[count]); 
-                                    printf ("new output_fd: %d", new_output_fd); 
-                                    }
-                                else if (count == 3){ 
-                                    new_error_fd = atoi(argv[count]);
-                                    printf ("new new_error_fd: %d", new_error_fd); 
-                                    }
-                                /*else if (count == 4){ 
-                                    strcpy(cmd[0], argv[count - 4]);
-                                    printf ("new cmd: %s", cmd[0]); 
-                                    }
-                                else if (count > 4 && argv[count]!= NULL && strstr("--", argv[count]) == NULL) {
-                                    strcpy(arg_array[count-5], argv[count]);
-                                }
-                        }
-                    }
-
-                        /*arg_array[]
-                        printf("finished \n"); 
-
-                        pid_t pid = fork ();
-                        printf ("after fork \n"); 
-                        // check if unsuccessful 
-                        if (getpid() < 0) {
-                            printf ("not successful \n"); 
-                            abort(); 
-                            } 
-                        // successful fork 
-                        else if (getpid() == 0){
-                            printf ("forked successfully \n"); 
-                            dup2 (input_fd, new_intput_fd); 
-                            dup2 (output_fd, new_output_fd); 
-                            dup2 (error_fd, new_error_fd);
-
-                            // close input_fd, output_fd, error_fd 
-                            close (input_fd); 
-                            close (output_fd); 
-                            close (error_fd); 
-
-                            printf ("cmd is: %s ", cmd); 
-                            printf ("arg array is: %s ", *arg_array); 
-
-
-                            execvp (cmd, arg_array); 
-
-
-                            // execvp(const char *file, char *const argv[])
-                            // close the i o e 
-                            }
-                        else {
-                            printf("none of the above \n");
-                            printf ("pid is %d \n", pid);                         
-                        }
-                        kill(pid, SIGKILL); 
-                        break; 
-               
-            } //close switch 
-        } //close if for tracker 2 c -1 
-
-         // read and write the files
-        if (c== -1 && tracker == 2){
-        	while ((ret = read(input_fd, buf, sizeof(buf)-1)) != 0){
-        	   (ret2 = write(output_fd, buf, ret));
-        	}
-            if (ret == -1 || ret2 ==-1){
-                close (input_fd); 
-         	    close (output_fd);
-        	    printf ("exit wrong at the end");
-                exit (3);
-            }
-            else {
-                close (input_fd); 
-          	    close (output_fd); 
-                exit (0); // default exit status if everything is correct
-
-            }
-        } */
+return 0; 
+}
+                       
+         
    // } // end of while loop
 //    return 0;
 //}
