@@ -59,14 +59,18 @@ int main(int argc, char **argv) {
 	
             switch (c){
                 case 'R':
+                    printf ("inside rdonly \n");
                     if (verbose_flag == true){
                         printf ("--%s %s \n", long_options[option_index].name , optarg); 
                         }
-                    input_fd = open (optarg, O_RDONLY); 
+                    printf ("optarg is: %s \n", optarg);
+                    input_fd = open (optarg, O_RDONLY, 0644); 
+                    printf ("inputfd is: %d \n", input_fd); 
                     if (input_fd < 0 ){
                         fprintf (stderr, "Cannot Open the Specified Input File %c", optarg);
                         exit (1);
                         }  
+                    printf ("optind is: %d \n", optind); 
                     break;  
                 case 'B':
                     if (verbose_flag == true){
@@ -164,23 +168,14 @@ int main(int argc, char **argv) {
                 }
         }
     // read and write the files
-    /*if (c== -1 && tracker == 2){
-        printf ("here to read and write everything \n"); 
-        while ((ret = read(input_fd, buf, sizeof(buf)-1)) != EOF ){
-          (ret2 = write(output_fd, buf, ret));
-            }
-        if (ret == -1 || ret2 ==-1){
-            close (input_fd); 
-            close (output_fd);
-            printf ("exit wrong at the end");
-            exit (1);
-            }*/ 
+    if (c== -1 && tracker == 2){
+        exit (0); 
         //else {
-            close (input_fd); 
-            close (output_fd); 
-            exit (0); // default exit status if everything is correct
+            //close (input_fd); 
+            //close (output_fd); 
           //  }
    // } 
+    }
 }
 return 0; 
 }
