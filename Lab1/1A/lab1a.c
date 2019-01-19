@@ -9,19 +9,23 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 int main(int argc, char **argv) {
     int ret, ret2;
     char buf[1024];
     int c;
-    // default FD numbers
-    int fd = 0;
-    int output_filetype = 1;
+    // default input_fd numbers
+    int input_fd = 0;
+    int output_fd = 1;
+    int error_fd = 2; 
     int tracker = 1; 
+    int new_intput_fd = 0; 
+    int new_output_fd = 1;
+    int new_error_fd = 2; 
     bool verbose_flag = false; 
 
     while (1){
@@ -30,7 +34,7 @@ int main(int argc, char **argv) {
         {"rdonly", required_argument, 0, 'R' },
         {"rdwr", required_argument, 0, 'B' },
         {"verbose", no_argument, 0, 'V' },
-        {"command", required_argument, 0, 'C' },
+        {"command", no_argument, 0, 'C' },
         {0, 0, 0, 0}};
 
         int option_index = 0;
@@ -54,53 +58,213 @@ int main(int argc, char **argv) {
         if (tracker==2 && c !=-1){
 	
             switch (c){
-            
-            case 'R':
-                if (verbose_flag == true){
-                    printf ("--%s %s \n", long_options[option_index].name , optarg); 
+                case 'R':
+                    if (verbose_flag == true){
+                        printf ("--%s %s \n", long_options[option_index].name , optarg); 
+                        }
+                    input_fd = open (optarg, O_RDONLY); 
+                    if (input_fd < 0 ){
+                        fprintf (stderr, "Cannot Open the Specified Input File %c", optarg);
+                        exit (1);
+                        }  
+                    break;  
+                case 'B':
+                    if (verbose_flag == true){
+                        printf ("--%s %s \n", long_options[option_index].name , optarg); 
+                        }
+                    input_fd = open (optarg, O_RDWR); 
+                    if (input_fd < 0 ){       
+                        fprintf (stderr, "Cannot Open the Specified Input File %c", optarg);
+                        exit (1);
+                        }  
+                    break; 
+                case 'V':
+                    verbose_flag = true; 
+                    break; 
+                case 'C':
+                    printf ("in command %d \n", optarg);
+                    printf ("optind is: %d \n", optind); 
+                    int index_counter = optind; 
+                    printf ("index counter is: %d \n", index_counter); 
+                    printf ("argc is: %d \n", argc); 
+                    printf ("argv is: %s \n", argv);
+                    int arr_counter = 0; 
+                    int command_flag = 0; 
+                    char *cmd_args[argc]; 
+                    char *cmd_name [100]; 
+
+
+                    printf ("index counter is: %d and argc is: %d \n" , index_counter, argc); 
+                    while (index_counter < argc) {
+                            printf ("at top of while loop \n");                           
+                            if (argv[index_counter][0] == '-') {
+                                if (argv[index_counter] [1] == '-') {
+                                break; 
+                                }  
+                            } 
+                            else if (command_flag < 4) {
+                                if (command_flag == 0){
+                                    new_intput_fd = atoi(argv[index_counter]); 
+                                    printf ("new input_fd: %d \n", new_intput_fd); 
+                                    command_flag ++; 
+                                    }
+                                else if (command_flag == 1){
+                                    new_output_fd = atoi(argv[index_counter]); 
+                                    printf ("new output_fd: %d \n", new_output_fd);                       
+                                    command_flag ++; 
+                                    }
+                                else if (command_flag == 2){
+                                    new_error_fd = atoi(argv[index_counter]);  
+                                    printf ("new new_error_fd: %d \n", new_error_fd); 
+                                    command_flag ++; 
+                                    } 
+                                else if (command_flag == 3) {
+                                    cmd_name [0] = argv[index_counter]; 
+                                    printf ("command to execute is: %s \n", cmd_name[0]); 
+                                    command_flag ++; 
+                                }
+                            }
+                            else {
+                                cmd_args[arr_counter] = argv[index_counter]; 
+                                printf ("adding to cmd_arg is: %s \n", argv[index_counter] ); 
+                                arr_counter++; 
+                                optind = index_counter;
+                                }
+                            printf ("counter is now : %d and argc is : %d \n", index_counter, argc); 
+                            index_counter++; 
+                    }
+                    printf ("here now \n"); 
+                    cmd_args[arr_counter] = '\0'; 
+
+                    pid_t pid = fork ();
+                    printf ("after fork \n"); 
+                    // check if unsuccessful 
+                    if (getpid() < 0) {
+                        printf ("not successful \n"); 
+                        abort(); 
+                    } 
+                    // successful fork 
+                    else if (getpid() == 0){
+                        dup2 (input_fd, new_intput_fd); 
+                        dup2 (output_fd, new_output_fd); 
+                        dup2 (error_fd, new_error_fd);
+                            // close input_fd, outputfd, error_fd 
+                        close (input_fd); 
+                        close (output_fd); 
+                        close (error_fd); 
+
+                        execvp (cmd_name [0], cmd_args); 
+
+                    }
+                    else {
+                            printf("none of the above \n");
+                            printf ("pid is %d \n", pid);                         
+                        }
+
                 }
-                fd = open (optarg, O_RDONLY); 
-                if (fd < 0 ){
-                    fprintf (stderr, "Cannot Open the Specified Input File %s", optarg);
-                    exit (1);
-                }  
-                break;  
-            case 'B':
-                if (verbose_flag == true){
-                    printf ("--%s %s \n", long_options[option_index].name , optarg); 
-                }
-                fd = open (optarg, O_RDWR); 
-                if (fd < 0 ){       
-                    fprintf (stderr, "Cannot Open the Specified Input File %s", optarg);
-                    exit (1);
-                }  
-                break; 
-            case 'V':
-                verbose_flag = true; 
-                break; 
-            default:
-                abort (); 
-            }//close switch 
-        }//close if for tracker 2 c -1 
+        }
+}
+return 0; }
+                       /* char *arg_array[argc]; 
+                        char *cmd[1];
+                        if (argc > 1){
+                            int count = 1;
+                            for(count =1 ; count < argc; count++) {
+                                printf("%s \n", argv[count]);
+                                if (count == 1){ 
+                                    new_intput_fd = atoi(argv[count]);  
+                                    printf ("new input_fd: %d", new_intput_fd); 
+                                    }
+                                else if (count == 2){ 
+                                    new_output_fd = atoi(argv[count]); 
+                                    printf ("new output_fd: %d", new_output_fd); 
+                                    }
+                                else if (count == 3){ 
+                                    new_error_fd = atoi(argv[count]);
+                                    printf ("new new_error_fd: %d", new_error_fd); 
+                                    }
+                                /*else if (count == 4){ 
+                                    strcpy(cmd[0], argv[count - 4]);
+                                    printf ("new cmd: %s", cmd[0]); 
+                                    }
+                                else if (count > 4 && argv[count]!= NULL && strstr("--", argv[count]) == NULL) {
+                                    strcpy(arg_array[count-5], argv[count]);
+                                }
+                        }
+                    }
+
+                        /*arg_array[]
+                        printf("finished \n"); 
+
+                        pid_t pid = fork ();
+                        printf ("after fork \n"); 
+                        // check if unsuccessful 
+                        if (getpid() < 0) {
+                            printf ("not successful \n"); 
+                            abort(); 
+                            } 
+                        // successful fork 
+                        else if (getpid() == 0){
+                            printf ("forked successfully \n"); 
+                            dup2 (input_fd, new_intput_fd); 
+                            dup2 (output_fd, new_output_fd); 
+                            dup2 (error_fd, new_error_fd);
+
+                            // close input_fd, output_fd, error_fd 
+                            close (input_fd); 
+                            close (output_fd); 
+                            close (error_fd); 
+
+                            printf ("cmd is: %s ", cmd); 
+                            printf ("arg array is: %s ", *arg_array); 
+
+
+                            execvp (cmd, arg_array); 
+
+
+                            // execvp(const char *file, char *const argv[])
+                            // close the i o e 
+                            }
+                        else {
+                            printf("none of the above \n");
+                            printf ("pid is %d \n", pid);                         
+                        }
+                        kill(pid, SIGKILL); 
+                        break; 
+               
+            } //close switch 
+        } //close if for tracker 2 c -1 
 
          // read and write the files
         if (c== -1 && tracker == 2){
-        	while ((ret = read(fd, buf, sizeof(buf)-1)) != 0){ //&& ((ret = read(fd, buf, sizeof(buf)-1)) >0)) {
-        	   (ret2 = write(output_filetype, buf, ret));
+        	while ((ret = read(input_fd, buf, sizeof(buf)-1)) != 0){
+        	   (ret2 = write(output_fd, buf, ret));
         	}
             if (ret == -1 || ret2 ==-1){
-                close (fd); 
-         	    close (output_filetype);
+                close (input_fd); 
+         	    close (output_fd);
         	    printf ("exit wrong at the end");
                 exit (3);
             }
             else {
-                close (fd); 
-          	    close (output_filetype); 
+                close (input_fd); 
+          	    close (output_fd); 
                 exit (0); // default exit status if everything is correct
 
             }
-        }
-    } // end of while loop
-    return 0;
+        } */
+   // } // end of while loop
+//    return 0;
+//}
+
+
+/* 
+char **array = malloc(totalstrings * sizeof(char *));
+
+Next you need to allocate space for each string:
+
+int i;
+for (i = 0; i < totalstrings; ++i) {
+    array[i] = (char *)malloc(stringsize+1);
 }
+*/
