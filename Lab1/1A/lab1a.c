@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
 #include <signal.h>
 
 int main(int argc, char **argv) {
@@ -19,14 +18,19 @@ int main(int argc, char **argv) {
     char buf[1024];
     int c;
     // default input_fd numbers
-    int input_fd = 0;
+    int input_fd; /*
     int output_fd = 1;
-    int error_fd = 2; 
+    int error_fd = 2; */
     int tracker = 1; 
-    int new_intput_fd = 0; 
-    int new_output_fd = 1;
-    int new_error_fd = 2; 
-    bool verbose_flag = false; 
+    int starting_fd_number = 0;
+    int new_fd; 
+    
+    int fd_table_counter = 0;
+    int fd_table[100];
+    bool verbose_flag = false;
+    int command_intput_fd; 
+    int command_output_fd; 
+    int command_error_fd; 
 
     while (1){
 
@@ -58,13 +62,15 @@ int main(int argc, char **argv) {
         if (tracker==2 && c !=-1){
 	
             switch (c){
-                case 'R':
+                case 'R': {
                     // printf ("inside rdonly \n");
                     if (verbose_flag == true){
                         printf ("--%s %s \n", long_options[option_index].name , optarg); 
                         }
                     //printf ("optarg is: %s \n", optarg);
-                    input_fd = open (optarg, O_RDONLY, 0644); 
+                    input_fd = open (optarg, O_RDONLY, 0644);
+                    fd_table[fd_table_counter] = input_fd;  
+                    fd_table_counter++;
                     //printf ("inputfd is: %d \n", input_fd); 
                     if (input_fd < 0 ){
                         fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
@@ -72,11 +78,16 @@ int main(int argc, char **argv) {
                         }  
                     //printf ("optind is: %d \n", optind); 
                     break;  
+
+                }
+                    
                 case 'B':
                     if (verbose_flag == true){
                         printf ("--%s %s \n", long_options[option_index].name , optarg); 
                         }
-                    input_fd = open (optarg, O_RDWR); 
+                    input_fd = open (optarg, O_RDWR, 0644); 
+                    fd_table[fd_table_counter] = input_fd;
+                    fd_table_counter++;
                     if (input_fd < 0 ){       
                         fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
                         exit (1);
@@ -93,6 +104,7 @@ int main(int argc, char **argv) {
                     int command_flag = 0; 
                     char *cmd_args[argc]; 
                     char *cmd_name [100];
+                    int temp_fd_table_counter = fd_table_counter - 3;
                 
                     while (index_counter < argc) {
                             if (argv[index_counter][0] == '-') {
@@ -101,20 +113,30 @@ int main(int argc, char **argv) {
                                 }  
                             } 
                             else if (command_flag < 4) {
+                                // input
                                 if (command_flag == 0){
-                                    new_intput_fd = atoi(argv[index_counter]); 
+                                    starting_fd_number = fd_table_counter - 3;
+                                    command_intput_fd = fd_table[atoi(argv[index_counter])];
+                                    temp_fd_table_counter++;
                                     command_flag ++; 
                                     }
+                                // output
                                 else if (command_flag == 1){
-                                    new_output_fd = atoi(argv[index_counter]); 
+                                    command_output_fd = fd_table[atoi(argv[index_counter])]; 
                                     command_flag ++; 
+                                    temp_fd_table_counter++;
                                     }
+                                // error 
                                 else if (command_flag == 2){
-                                    new_error_fd = atoi(argv[index_counter]);  
+                                    command_error_fd = fd_table[atoi(argv[index_counter])];  
                                     command_flag ++; 
+                                    temp_fd_table_counter++;
                                     } 
+                                // actual command 
                                 else if (command_flag == 3) {
                                     cmd_name [0] = argv[index_counter]; 
+                                    cmd_name [1] = NULL; 
+
                                     command_flag ++; 
                                     cmd_args[arr_counter] = argv[index_counter]; 
                                     arr_counter ++;
@@ -130,45 +152,54 @@ int main(int argc, char **argv) {
                             index_counter++; 
                     }
                     //printf ("here now \n"); 
-                    cmd_args[arr_counter] = NULL; 
+                    cmd_args[arr_counter] = NULL;
+
+                    /*int i; 
+                    for(i = 0; cmd_args[i] != '\0'; i++){
+                        printf("cmd_args[%d] is :%s \n", i, cmd_args[i]);
+                    } 
+                    for(i = 0; cmd_name[i] != '\0'; i++){
+                        printf("cmd_args[%d] is :%s \n", i, cmd_name[i]);
+                    } */
 
                     pid_t pid = fork ();
                     //printf ("after fork \n"); 
                     // check if unsuccessful 
-                    if (getpid() < 0) {
-                        printf ("not successful \n"); 
+                    if (pid < 0) {
+                        //printf ("not successful \n"); 
                         abort(); 
                     } 
                     // successful fork 
-                    else if (getpid() == 0){
-                        dup2 (new_intput_fd, 0); 
-                        dup2 (new_output_fd, 1); 
-                        dup2 (new_error_fd, 2);
+                    else if (pid == 0){
+                        dup2 (command_intput_fd, 0); 
+                        dup2 (command_output_fd, 1); 
+                        dup2 (command_error_fd, 2);
                             // close input_fd, outputfd, error_fd 
-                        close (new_intput_fd); 
-                        close (new_output_fd); 
-                        close (new_error_fd); 
+                        close (fd_table[starting_fd_number]); 
+                        close (fd_table[starting_fd_number+1]); 
+                        close (fd_table[starting_fd_number+2]); 
 
-                        execvp (cmd_args[0], cmd_args); 
+                        int execvp_output = execvp (*cmd_args, cmd_args); 
+                        if (execvp_output == -1){
+                            fprintf (stderr, "Error with execvp %s", strerror(errno));
+
+                        } 
 
                     }
-                    else {
+                    else if (pid > 0) {
                             //printf("none of the above \n");
-                            printf ("pid is %d \n", pid);                         
+                           // printf ("pid is %d \n", pid);                         
                         } 
-                    break; }
-
+                    break; 
                 }
-        }
-    // read and write the files
-    if (c== -1 && tracker == 2){
-        exit (0); 
-        //else {
-            //close (input_fd); 
-            //close (output_fd); 
-          //  }
-   // } 
+
+            }
+        } // if statement 
+        // read and write the files
+        if (c== -1 && tracker == 2){
+            exit (0); 
+       
+        }   
     }
-}
 return 0; 
 }
