@@ -30,7 +30,8 @@ int main(int argc, char **argv) {
     bool verbose_flag = false;
     int command_intput_fd = 0; 
     int command_output_fd = 1; 
-    int command_error_fd = 2; 
+    int command_error_fd = 2;
+    bool exit_one = false;  
 
     while (1){
 
@@ -69,13 +70,13 @@ int main(int argc, char **argv) {
                         }
                     //printf ("optarg is: %s \n", optarg);
                     input_fd = open (optarg, O_RDONLY, 0644);
+                    //printf ("inputfd is: %d \n", input_fd); 
+                    if (input_fd == -1 ){
+                        fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
+                        exit_one = true; 
+                        }  
                     fd_table[fd_table_counter] = input_fd;  
                     fd_table_counter++;
-                    //printf ("inputfd is: %d \n", input_fd); 
-                    if (input_fd < 0 ){
-                        fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
-                        exit (1);
-                        }  
                     //printf ("optind is: %d \n", optind); 
                     break;  
 
@@ -86,12 +87,12 @@ int main(int argc, char **argv) {
                         printf ("--%s %s \n", long_options[option_index].name , optarg); 
                         }
                     input_fd = open (optarg, O_RDWR, 0644); 
+                    if (input_fd == -1){       
+                        fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
+                        exit_one = true; 
+                        }  
                     fd_table[fd_table_counter] = input_fd;
                     fd_table_counter++;
-                    if (input_fd < 0 ){       
-                        fprintf (stderr, "Cannot Open the Specified Input File %c \n", optarg);
-                        exit (1);
-                        }  
                     break; 
                 case 'V':
                     verbose_flag = true; 
@@ -129,7 +130,8 @@ int main(int argc, char **argv) {
                                     command_output_fd = fd_table[atoi(argv[index_counter])]; 
                                     if (atoi(argv[index_counter]) >= fd_table_counter) {
                                         fprintf (stderr, "File Descriptor for writing contents is wrong"); 
-                                        exit (1); 
+                                         exit (1); 
+
                                     }
                                     command_flag ++; 
                                     temp_fd_table_counter++;
@@ -138,7 +140,7 @@ int main(int argc, char **argv) {
                                 else if (command_flag == 2){
                                     command_error_fd = fd_table[atoi(argv[index_counter])];  
                                      if (atoi(argv[index_counter]) >= fd_table_counter) {
-                                        fprintf (stderr, "File Descriptor for reading contents is wrong"); 
+                                        fprintf (stderr, "File Descriptor for reading contents is wrong");
                                         exit (1); 
                                     }
                                     command_flag ++; 
@@ -209,6 +211,9 @@ int main(int argc, char **argv) {
         } // if statement 
         // read and write the files
         if (c== -1 && tracker == 2){
+            if (exit_one == true){
+                exit(1); 
+            }
             exit (0); 
        
         }   
