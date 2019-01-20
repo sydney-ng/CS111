@@ -28,9 +28,9 @@ int main(int argc, char **argv) {
     int fd_table_counter = 0;
     int fd_table[100];
     bool verbose_flag = false;
-    int command_intput_fd; 
-    int command_output_fd; 
-    int command_error_fd; 
+    int command_intput_fd = 0; 
+    int command_output_fd = 1; 
+    int command_error_fd = 2; 
 
     while (1){
 
@@ -117,18 +117,30 @@ int main(int argc, char **argv) {
                                 if (command_flag == 0){
                                     starting_fd_number = fd_table_counter - 3;
                                     command_intput_fd = fd_table[atoi(argv[index_counter])];
+                                    if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                        fprintf (stderr, "File Descriptor for reading contents is wrong"); 
+                                        exit (1); 
+                                    }
                                     temp_fd_table_counter++;
                                     command_flag ++; 
                                     }
                                 // output
                                 else if (command_flag == 1){
                                     command_output_fd = fd_table[atoi(argv[index_counter])]; 
+                                    if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                        fprintf (stderr, "File Descriptor for writing contents is wrong"); 
+                                        exit (1); 
+                                    }
                                     command_flag ++; 
                                     temp_fd_table_counter++;
                                     }
                                 // error 
                                 else if (command_flag == 2){
                                     command_error_fd = fd_table[atoi(argv[index_counter])];  
+                                     if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                        fprintf (stderr, "File Descriptor for reading contents is wrong"); 
+                                        exit (1); 
+                                    }
                                     command_flag ++; 
                                     temp_fd_table_counter++;
                                     } 
