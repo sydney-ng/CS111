@@ -94,8 +94,8 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
             optind = index_counter;
             }
             //printf ("counter is now : %d and argc is : %d \n", index_counter, argc); 
-            index_counter++; 
     }// close while 
+            index_counter++; 
     //command_to_children (command_intput_fd, command_output_fd, command_error_fd, cmd_args);
 }
     cmd_args[arr_counter] = NULL;
