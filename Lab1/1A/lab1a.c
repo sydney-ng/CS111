@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
 
         int option_index = 0;
         c = getopt_long(argc, argv, "abc:d:f", long_options, &option_index);
-    
         switch (c){
             case 'R': {
                 // printf ("inside rdonly \n");
@@ -62,9 +61,7 @@ int main(int argc, char **argv) {
                 fd_table_counter++;
                 //printf ("optind is: %d \n", optind); 
                 break;  
-
-            }
-                
+            }  
             case 'B':
                 if (verbose_flag == true){
                     printf ("--%s %s \n", long_options[option_index].name , optarg); 
@@ -111,114 +108,99 @@ int main(int argc, char **argv) {
                     printf ("--%s \n", v_str); 
                 }            
                 while (index_counter < argc) {
-                        if (argv[index_counter][0] == '-') {
-                            if (argv[index_counter] [1] == '-') {
-                            break; 
-                            }  
-                        } 
-                        else if (command_flag < 4) {
-                            // input
-                            if (command_flag == 0){
-                                starting_fd_number = fd_table_counter - 3;
-                                command_intput_fd = fd_table[atoi(argv[index_counter])];
-                                if (atoi(argv[index_counter]) >= fd_table_counter) {
-                                    fprintf (stderr, "File Descriptor for reading contents is wrong"); 
-                                    exit (1); 
-                                }
-                                temp_fd_table_counter++;
-                                command_flag ++; 
-                                }
-                            // output
-                            else if (command_flag == 1){
-                                command_output_fd = fd_table[atoi(argv[index_counter])]; 
-                                if (atoi(argv[index_counter]) >= fd_table_counter) {
-                                    fprintf (stderr, "File Descriptor for writing contents is wrong"); 
-                                     exit (1); 
-
-                                }
-                                command_flag ++; 
-                                temp_fd_table_counter++;
-                                }
-                            // error 
-                            else if (command_flag == 2){
-                                command_error_fd = fd_table[atoi(argv[index_counter])];  
-                                 if (atoi(argv[index_counter]) >= fd_table_counter) {
-                                    fprintf (stderr, "File Descriptor for reading contents is wrong");
-                                    exit (1); 
-                                }
-                                command_flag ++; 
-                                temp_fd_table_counter++;
-                                } 
-                            // actual command 
-                            else if (command_flag == 3) {
-                                cmd_name [0] = argv[index_counter]; 
-                                cmd_name [1] = NULL; 
-
-                                command_flag ++; 
-                                cmd_args[arr_counter] = argv[index_counter]; 
-                                arr_counter ++;
+                    if (argv[index_counter][0] == '-') {
+                        if (argv[index_counter] [1] == '-') {
+                        break; 
+                        }  
+                    } 
+                    else if (command_flag < 4) {
+                        // input
+                        if (command_flag == 0){
+                            starting_fd_number = fd_table_counter - 3;
+                            command_intput_fd = fd_table[atoi(argv[index_counter])];
+                            if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                fprintf (stderr, "File Descriptor for reading contents is wrong"); 
+                                exit (1); 
                             }
-                        }
-                        else {
+                            temp_fd_table_counter++;
+                            command_flag ++; 
+                            }
+                        // output
+                        else if (command_flag == 1){
+                            command_output_fd = fd_table[atoi(argv[index_counter])]; 
+                            if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                fprintf (stderr, "File Descriptor for writing contents is wrong"); 
+                                 exit (1); 
+
+                            }
+                            command_flag ++; 
+                            temp_fd_table_counter++;
+                            }
+                        // error 
+                        else if (command_flag == 2){
+                            command_error_fd = fd_table[atoi(argv[index_counter])];  
+                             if (atoi(argv[index_counter]) >= fd_table_counter) {
+                                fprintf (stderr, "File Descriptor for reading contents is wrong");
+                                exit (1); 
+                            }
+                            command_flag ++; 
+                            temp_fd_table_counter++;
+                            } 
+                        // actual command 
+                        else if (command_flag == 3) {
+                            cmd_name [0] = argv[index_counter]; 
+                            cmd_name [1] = NULL; 
+
+                            command_flag ++; 
                             cmd_args[arr_counter] = argv[index_counter]; 
-                            //printf ("adding to cmd_arg is: %s \n", argv[index_counter] ); 
-                            arr_counter++; 
-                            optind = index_counter;
-                            }
+                            arr_counter ++;
+                        }
+                    }
+                    else {
+                        cmd_args[arr_counter] = argv[index_counter]; 
+                        //printf ("adding to cmd_arg is: %s \n", argv[index_counter] ); 
+                        arr_counter++; 
+                        optind = index_counter;
+                        }
                         //printf ("counter is now : %d and argc is : %d \n", index_counter, argc); 
                         index_counter++; 
-                }
-                //printf ("here now \n"); 
-                cmd_args[arr_counter] = NULL;
+                    }
+                    
+                    cmd_args[arr_counter] = NULL;
 
-                /*int i; 
-                for(i = 0; cmd_args[i] != '\0'; i++){
-                    printf("cmd_args[%d] is :%s \n", i, cmd_args[i]);
-                } 
-                for(i = 0; cmd_name[i] != '\0'; i++){
-                    printf("cmd_args[%d] is :%s \n", i, cmd_name[i]);
-                } */
-
-                pid_t pid = fork ();
-                //printf ("after fork \n"); 
-                // check if unsuccessful 
-                if (pid < 0) {
-                    //printf ("not successful \n"); 
-                    abort(); 
-                } 
-                // successful fork 
-                else if (pid == 0){
-                    dup2 (command_intput_fd, 0); 
-                    dup2 (command_output_fd, 1); 
-                    dup2 (command_error_fd, 2);
-                        // close input_fd, outputfd, error_fd 
-                    close (fd_table[starting_fd_number]); 
-                    close (fd_table[starting_fd_number+1]); 
-                    close (fd_table[starting_fd_number+2]); 
-
-                    int execvp_output = execvp (*cmd_args, cmd_args);
-                    if (execvp_output == -1){
-                        fprintf (stderr, "Error with execvp %s", strerror(errno));
-
+                    pid_t pid = fork ();
+                    if (pid < 0) {
+                        abort(); 
                     } 
+                    else if (pid == 0){
+                        dup2 (command_intput_fd, 0); 
+                        dup2 (command_output_fd, 1); 
+                        dup2 (command_error_fd, 2);
+                            // close input_fd, outputfd, error_fd 
+                        close (fd_table[starting_fd_number]); 
+                        close (fd_table[starting_fd_number+1]); 
+                        close (fd_table[starting_fd_number+2]); 
 
-                }
-                else if (pid > 0) {
-                        //printf("none of the above \n");
-                       // printf ("pid is %d \n", pid);                         
-                    } 
-                break; 
-            }
+                        int execvp_output = execvp (*cmd_args, cmd_args);
+                        if (execvp_output == -1){
+                            fprintf (stderr, "Error with execvp %s", strerror(errno));
+                        } 
 
-        }  
+                    }
+                    else if (pid > 0) {
+                            //printf("none of the above \n");
+                           // printf ("pid is %d \n", pid);                         
+                        } 
+                } // close while inside of cmd  
+                break;    
+        } // close switch
         if (c == -1){
             break;
-        } 
-    }
+            }      
+    }  // close while 
     // read and write the files
-        if (exit_one == true){
-            exit(1); 
+    if (exit_one == true){
+        exit(1); 
         }
-        exit (0); 
-return 0; 
+    exit (0);  
 }
