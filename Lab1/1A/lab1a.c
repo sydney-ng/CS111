@@ -86,15 +86,15 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
                 cmd_args[arr_counter] = argv[index_counter]; 
                 arr_counter ++;
             
-        }
+            } 
+        }// close: else if (command_flag < 4)
         else {
             cmd_args[arr_counter] = argv[index_counter]; 
             //printf ("adding to cmd_arg is: %s \n", argv[index_counter]); 
             arr_counter++; 
-            optind = index_counter;
+            //optind = index_counter;
             }
-            //printf ("counter is now : %d and argc is : %d \n", index_counter, argc); 
-    }// close while 
+            //printf ("counter is now : %d and argc is : %d \n", index_counter, argc);
             index_counter++; 
     //command_to_children (command_intput_fd, command_output_fd, command_error_fd, cmd_args);
 }
