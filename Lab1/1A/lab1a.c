@@ -89,7 +89,27 @@ int main(int argc, char **argv) {
                 char *cmd_args[argc]; 
                 char *cmd_name [100];
                 int temp_fd_table_counter = fd_table_counter - 3;
-            
+                char v_str[100]; 
+                if (verbose_flag == true){
+                    strcpy (v_str, long_options[option_index].name);
+                    strcat (v_str, " "); 
+                    int index_counter_copy = index_counter; 
+                    while (index_counter_copy < argc) {
+                        if (argv[index_counter_copy][0] == '-') {
+                            if (argv[index_counter_copy] [1] == '-') {
+                            break; 
+                            } 
+                        }
+                        else {
+                            strcat(v_str, argv[index_counter_copy]); 
+                            strcat (v_str, " "); 
+
+                        } 
+                        index_counter_copy++; 
+                    }
+
+                    printf ("--%s \n", v_str); 
+                }            
                 while (index_counter < argc) {
                         if (argv[index_counter][0] == '-') {
                             if (argv[index_counter] [1] == '-') {
