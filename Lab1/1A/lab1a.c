@@ -28,6 +28,7 @@ int command_error_fd = 2;
 void parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
 
 void parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
+    printf ("inside parse_command_option \n"); 
     int index_counter = optind; 
     int arr_counter = 0; 
     int command_flag = 0; 
@@ -48,7 +49,7 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
                 //fprintf ("command_intput_fd is: %d \n", command_intput_fd); 
 
                 if (atoi(argv[index_counter]) >= fd_table_counter) {
-//                    fprintf (stderr, "File Descriptor for reading contents is wrong"); 
+                    fprintf (stderr, "File Descriptor for reading contents is wrong"); 
                     exit (1); 
                 }
                 temp_fd_table_counter++;
@@ -87,7 +88,7 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
         }
         else {
             cmd_args[arr_counter] = argv[index_counter]; 
-            //printf ("adding to cmd_arg is: %s \n", argv[index_counter] ); 
+            printf ("adding to cmd_arg is: %s \n", argv[index_counter]); 
             arr_counter++; 
             optind = index_counter;
             }
@@ -155,12 +156,13 @@ int main(int argc, char **argv) {
                     }
                 //printf ("optarg is: %s \n", optarg);
                 input_fd = open (optarg, O_RDONLY, 0644);
-                //printf ("inputfd is: %d \n", input_fd); 
                 if (input_fd == -1 ){
                     fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
                     exit_one = true; 
                     }  
-                fd_table[fd_table_counter] = input_fd;  
+                fd_table[fd_table_counter] = input_fd; 
+                //printf ("fd_table_counter %d || fd_table[fd_table_counter]: %d || input_fd: %d \n", fd_table_counter, fd_table[fd_table_counter], input_fd); 
+ 
                 fd_table_counter++;
                 //printf ("optind is: %d \n", optind); 
                 break;  
@@ -177,6 +179,8 @@ int main(int argc, char **argv) {
                     exit_one = true; 
                     }  
                 fd_table[fd_table_counter] = input_fd;
+                //printf ("fd_table_counter %d || fd_table[fd_table_counter]: %d || input_fd: %d \n", fd_table_counter, fd_table[fd_table_counter], input_fd); 
+
                 fd_table_counter++;
                 break; 
             case 'V':
@@ -184,7 +188,6 @@ int main(int argc, char **argv) {
                 verbose_flag = true; 
                 break; 
             case 'C': {
-                printf ("here in C \n");
                 char v_str[100];
                 static char long_option_name[100]; 
                 if (verbose_flag == true){
@@ -208,7 +211,7 @@ int main(int argc, char **argv) {
                     printf ("--%s \n", v_str); 
                 }
 
-                //parse_command_option (optind, argv, argc, fd_table_counter, fd_table);
+                parse_command_option (optind, argv, argc, fd_table_counter, fd_table);
                 break; 
             }
             case '?': 
