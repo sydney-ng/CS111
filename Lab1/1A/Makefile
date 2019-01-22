@@ -6,7 +6,7 @@ simpsh: lab1a.o
 lab1a.o: lab1a.c
 	$(CC) -c lab1a.c
 check: 
-	./smoketest.sh
+	./test.sh
 
 clean: 
 	rm simpsh lab1a.o lab1-804794021.tar.gz
