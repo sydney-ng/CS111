@@ -25,10 +25,11 @@ int command_intput_fd = 0;
 int command_output_fd = 1; 
 int command_error_fd = 2;
 
-void parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
+int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
 
-void parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
+int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
     //printf ("inside parse_command_option \n"); 
+    int num_args = 0; 
     int index_counter = optind; 
     int arr_counter = 0; 
     int command_flag = 0; 
@@ -41,7 +42,7 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
             break; 
             }  
         } 
-        else if (command_flag < 4) {
+        if (command_flag < 4) {
             // input
             if (command_flag == 0){
                 starting_fd_number = fd_table_counter - 3;
@@ -90,9 +91,9 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
         }// close: else if (command_flag < 4)
         else {
             cmd_args[arr_counter] = argv[index_counter]; 
+            num_args ++; 
             //printf ("adding to cmd_arg is: %s \n", argv[index_counter]); 
             arr_counter++; 
-            //optind = index_counter;
             }
             //printf ("counter is now : %d and argc is : %d \n", index_counter, argc);
             index_counter++; 
@@ -124,6 +125,7 @@ void parse_command_option (int optind, char **argv, int argc, int fd_table_count
             //printf("none of the above \n");
            // printf ("pid is %d \n", pid);                         
         } 
+    return num_args + 4; // 4 is for 3 fd and the cmd name
 }
 
                     
@@ -213,7 +215,8 @@ int main(int argc, char **argv) {
                     printf ("--%s \n", v_str); 
                 }
 
-                parse_command_option (optind, argv, argc, fd_table_counter, fd_table);
+                int parse_command_option_ret = parse_command_option (optind, argv, argc, fd_table_counter, fd_table);
+                optind += parse_command_option_ret; 
                 break; 
             }
             case '?': 
