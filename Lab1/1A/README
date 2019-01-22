@@ -1,0 +1,5 @@
+NAME: Sydney Ng
+EMAIL: sydney.ng@yahoo.com
+ID: 804794021
+
+Similar to Lab 0, this project will use file descriptors that will either only open/ only write to, execute a command to a specific file descriptor, and possibly print out the commands you’re executing. You also can combine these together. Error messages will be printed to the error file descriptor if errors are encountered. 
