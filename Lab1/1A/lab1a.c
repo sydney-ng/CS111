@@ -16,6 +16,7 @@
 int fd_table[100];
 int starting_fd_number = 0;
 static struct option long_options[] = {
+    {"rdwr", required_argument, 0, 'W' },
     {"rdonly", required_argument, 0, 'R' },
     {"wronly", required_argument, 0, 'B' },
     {"verbose", no_argument, 0, 'V' },
@@ -24,6 +25,9 @@ static struct option long_options[] = {
 int command_intput_fd = 0; 
 int command_output_fd = 1; 
 int command_error_fd = 2;
+int fd_table_counter = 0;
+bool exit_one = false;  
+
 
 int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
 
@@ -129,6 +133,20 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
 }
 
                     
+void file_opening_options (char* option_name, bool verbose_flag, int option_index, char* optarg) {
+    if (verbose_flag == true){
+        printf ("--%s %s \n", long_options[option_index].name , optarg); 
+    }
+    int input_fd = open (optarg, O_RDONLY, 0644);
+    if (input_fd == -1 ){
+        fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
+        exit_one = true; 
+        }  
+    fd_table[fd_table_counter] = input_fd; 
+    //printf ("fd_table_counter %d || fd_table[fd_table_counter]: %d || input_fd: %d \n", fd_table_counter, fd_table[fd_table_counter], input_fd
+      //  ); 
+    fd_table_counter++;
+}
 
 int main(int argc, char **argv) {
     int ret, ret2;
@@ -140,10 +158,7 @@ int main(int argc, char **argv) {
     int error_fd = 2; */
     int tracker = 1; 
     int new_fd; 
-    
-    int fd_table_counter = 0;
     bool verbose_flag = false;
-    bool exit_one = false;  
     while (1){
         //printf ("here at the top of while (1)\n"); 
         int option_index = 0;
@@ -152,40 +167,14 @@ int main(int argc, char **argv) {
 
         switch (c){
             case 'R': {
-               // valid_command = true; 
-                // printf ("inside rdonly \n");
-                if (verbose_flag == true){
-                    printf ("--%s %s \n", long_options[option_index].name , optarg); 
-                    }
-                //printf ("optarg is: %s \n", optarg);
-                input_fd = open (optarg, O_RDONLY, 0644);
-                if (input_fd == -1 ){
-                    fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
-                    exit_one = true; 
-                    }  
-                fd_table[fd_table_counter] = input_fd; 
-                //printf ("fd_table_counter %d || fd_table[fd_table_counter]: %d || input_fd: %d \n", fd_table_counter, fd_table[fd_table_counter], input_fd
-                  //  ); 
- 
-                fd_table_counter++;
-                //printf ("optind is: %d \n", optind); 
+                file_opening_options (O_RDONLY, verbose_flag, option_index, optarg); 
                 break;  
             }  
             case 'B':
-               // valid_command = true; 
-
-                if (verbose_flag == true){
-                    printf ("--%s %s \n", long_options[option_index].name , optarg); 
-                    }
-                input_fd = open (optarg, O_RDWR, 0644); 
-                if (input_fd == -1){       
-                    fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
-                    exit_one = true; 
-                    }  
-                fd_table[fd_table_counter] = input_fd;
-                //printf ("fd_table_counter %d || fd_table[fd_table_counter]: %d || input_fd: %d \n", fd_table_counter, fd_table[fd_table_counter], input_fd); 
-
-                fd_table_counter++;
+                file_opening_options (O_WRONLY, verbose_flag, option_index, optarg); 
+                break; 
+            case 'W':
+                file_opening_options (O_RDWR, verbose_flag, option_index, optarg); 
                 break; 
             case 'V':
                 //valid_command = true; 
