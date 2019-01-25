@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
                 close (fd_table[atoi(optarg)]);
                 break;
             case 'R':
-                pass_flags = (O_RDONLY) | (trunc_flag & O_TRUNC);
+                pass_flags = (trunc_flag & O_TRUNC) | (O_RDONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 trunc_flag = 0;
                 break;
@@ -209,12 +209,12 @@ int main(int argc, char **argv) {
                 exit(1);
                 break;
             case 'W':
-                pass_flags = (O_WRONLY) | (trunc_flag & O_TRUNC);
+                pass_flags = (trunc_flag & O_TRUNC) | (O_WRONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 trunc_flag = 0;
                 break;
             case 'B':
-//                pass_flags = (O_RDWR) | (trunc_flag & O_TRUNC);
+                pass_flags = (trunc_flag & O_TRUNC) | (O_RDWR);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 trunc_flag = 0;
                 break;
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
                 catch_sig_int = atoi(optarg);
                 break;
             case 'P':
-                int pipe[2];
+                /*int pipe[2];
                 int pipe_output;
                 pipe_output = pipe(pipe1);
                 if (pipe_output == 0){
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
                     fd_table_counter++;
                     fd_table_counter[fd_table_counter] = pipe1.write_end;
                     fd_table_counter++;
-                    }
+                    }*/
                 break;
             case 'S':
                 pause();
