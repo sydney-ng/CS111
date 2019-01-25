@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 
 int fd_table[100];
 int starting_fd_number = 0;
@@ -27,16 +28,24 @@ int default_sig_int = 0;
 static int trunc_flag = 0;
 int pass_flags;
 
+struct FD_PIPE {
+    int read_end;
+    int write_end;
+};
+
 static struct option long_options[] = {
     {"rdwr", required_argument, 0, 'B' },
+    {"close", required_argument, 0, 'E' },
     {"rdonly", required_argument, 0, 'R' },
     {"wronly", required_argument, 0, 'W' },
     {"abort", no_argument, 0, 'A' },
-    {"default", required_argument, 0, 'A' },
+    {"default", required_argument, 0, 'D' },
     {"ignore", required_argument, 0, 'I' },
     {"catch", required_argument, 0, 'N' },
     {"verbose", no_argument, 0, 'V' },
     {"command", no_argument, 0, 'C' },
+    {"pipe", no_argument, 0, 'P' },
+    {"pause", no_argument, 0, 'S' },
     {"trunc",  no_argument, &trunc_flag, -1},
     {0, 0, 0, 0}};
 
@@ -45,7 +54,6 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 
 int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
-    //printf ("inside parse_command_option \n");
     int num_args = 0;
     int index_counter = optind;
     int arr_counter = 0;
@@ -187,6 +195,9 @@ int main(int argc, char **argv) {
         //bool valid_command = false;
         
         switch (c){
+            case 'E':
+                close (fd_table[atoi(optarg)]);
+                break;
             case 'R':
                 pass_flags = (O_RDONLY) | (trunc_flag & O_TRUNC);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
@@ -217,6 +228,20 @@ int main(int argc, char **argv) {
                 catch_sig = true;
                 catch_sig_int = atoi(optarg);
                 break;
+            case 'P':
+                int pipe[2];
+                int pipe_output;
+                pipe_output = pipe(pipe1);
+                if (pipe_output == 0){
+                    fd_table_counter[fd_table_counter] = pipe1.read_end;
+                    fd_table_counter++;
+                    fd_table_counter[fd_table_counter] = pipe1.write_end;
+                    fd_table_counter++;
+                    }
+                break;
+            case 'S':
+                pause();
+                break;
             case 'I':
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 catch_sig = false;
@@ -224,6 +249,7 @@ int main(int argc, char **argv) {
             case 'D':
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 default_sig_int = atoi(optarg);
+                signal(default_sig_int, SIG_DFL);
                 break;
             case 'C': {
                 char v_str[100];
@@ -271,10 +297,6 @@ int main(int argc, char **argv) {
         fprintf (stderr, "Exited with Error %d", catch_sig_int);
         exit (catch_sig_int);
     }
-    else if (default_sig == true) {
-        signal(default_sig_int, SIG_DFL);
-    }
-    
     if (exit_one == true){
         exit(1);
     }
