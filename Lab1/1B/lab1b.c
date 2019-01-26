@@ -1,18 +1,15 @@
-#define _POSIX_SOURCE
 #include <fcntl.h>
 #include <unistd.h>
-#undef _POSIX_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#define _GNU_SOURCE             /* See feature_test_macros(7) */
+#define _GNU_SOURCE           
 
 int fd_table[100];
 int starting_fd_number = 0;
@@ -25,13 +22,20 @@ bool catch_sig = false;
 bool default_sig = false;
 int catch_sig_int = 0;
 int default_sig_int = 0;
+static int append_flag = 0;
+static int cloexec_flag = 0;
+static int creat_flag = 0;
+static int directory_flag = 0;
+static int dysnc_flag = 0;
+static int excl_flag = 0;
+static int nofollow_flag = 0;
+static int nonblock_flag = 0;
+static int rsync_flag = 0;
+static int sync_flag = 0;
 static int trunc_flag = 0;
-int pass_flags;
+static int dsync_flag = 0; 
 
-struct FD_PIPE {
-    int read_end;
-    int write_end;
-};
+int pass_flags;
 
 static struct option long_options[] = {
     {"rdwr", required_argument, 0, 'B' },
@@ -46,8 +50,21 @@ static struct option long_options[] = {
     {"command", no_argument, 0, 'C' },
     {"pipe", no_argument, 0, 'P' },
     {"pause", no_argument, 0, 'S' },
+    {"append",  no_argument, &append_flag, -1},
+    {"cloexec",  no_argument, &cloexec_flag, -1},
+    {"creat",  no_argument, &creat_flag, -1},
+    {"directory",  no_argument, &directory_flag, -1},
+    {"dsync",  no_argument, &dsync_flag, -1},
+    {"excl",  no_argument, &excl_flag, -1},
+    {"nofollow",  no_argument, &nofollow_flag, -1},
+    {"nonblock",  no_argument, &nonblock_flag, -1},
+    {"rsync",  no_argument, &rsync_flag, -1},
+    {"sync",  no_argument, &sync_flag, -1},
     {"trunc",  no_argument, &trunc_flag, -1},
     {0, 0, 0, 0}};
+
+int create_flags (int original_flag); 
+void reset_flags (); 
 
 int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
@@ -177,6 +194,39 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
         printf ("--%s %s \n", long_options[option_index].name , optarg);
     }
 }
+
+int create_flags (int original_flag){
+
+    int actual_flag; 
+    actual_flag =
+    (append_flag & O_APPEND) |
+    (cloexec_flag & O_CLOEXEC) |
+    (creat_flag & O_CREAT) |
+    (directory_flag & O_DIRECTORY) |
+    (dsync_flag & O_DSYNC) |
+    (excl_flag & O_EXCL) |
+    (nofollow_flag & O_NOFOLLOW) |
+    (nonblock_flag & O_NONBLOCK) |
+    (rsync_flag & O_RSYNC) |
+    (sync_flag & O_SYNC) |
+    (trunc_flag & O_TRUNC) | (original_flag);
+    return actual_flag; 
+}
+
+void reset_flags () {
+   append_flag = 0;
+   cloexec_flag = 0;
+   creat_flag = 0;
+   directory_flag = 0;
+   dysnc_flag = 0;
+   excl_flag = 0;
+   nofollow_flag = 0;
+   nonblock_flag = 0;
+   rsync_flag = 0;
+   sync_flag = 0;
+   trunc_flag = 0; 
+}
+
 int main(int argc, char **argv) {
     int ret, ret2;
     char buf[1024];
@@ -199,9 +249,9 @@ int main(int argc, char **argv) {
                 close (fd_table[atoi(optarg)]);
                 break;
             case 'R':
-                pass_flags = (trunc_flag & O_TRUNC) | (O_RDONLY);
+                pass_flags = create_flags (O_RDONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
-                trunc_flag = 0;
+                reset_flags (); 
                 break;
             case 'A':
                 check_verbose_flag (option_index, optarg, verbose_flag);
@@ -209,14 +259,14 @@ int main(int argc, char **argv) {
                 exit(1);
                 break;
             case 'W':
-                pass_flags = (trunc_flag & O_TRUNC) | (O_WRONLY);
+                pass_flags = create_flags (O_WRONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
-                trunc_flag = 0;
+                reset_flags (); 
                 break;
             case 'B':
-                pass_flags = (trunc_flag & O_TRUNC) | (O_RDWR);
+                pass_flags = create_flags (O_RDWR);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
-                trunc_flag = 0;
+                reset_flags (); 
                 break;
             case 'V':
                 check_verbose_flag (option_index, optarg, verbose_flag);
@@ -229,15 +279,19 @@ int main(int argc, char **argv) {
                 catch_sig_int = atoi(optarg);
                 break;
             case 'P':
-                /*int pipe[2];
+                ;
+                int pipefd[2];
                 int pipe_output;
-                pipe_output = pipe(pipe1);
+                pipe_output = pipe(pipefd); 
                 if (pipe_output == 0){
-                    fd_table_counter[fd_table_counter] = pipe1.read_end;
+                    fd_table[fd_table_counter] = pipefd[0];
                     fd_table_counter++;
-                    fd_table_counter[fd_table_counter] = pipe1.write_end;
+                    fd_table[fd_table_counter] = pipefd[1];
                     fd_table_counter++;
-                    }*/
+                    } 
+                else {
+                    exit_one = true; 
+                }
                 break;
             case 'S':
                 pause();
