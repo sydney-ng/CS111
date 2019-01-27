@@ -214,7 +214,8 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
 }
 
 void sigHandler (int optarg) {
-    fprint (stderr, "%d caught \n", optarg); 
+    fprintf (stderr, "%d caught \n", optarg); 
+    exit (optarg); 
 }
 
 int create_flags (int original_flag){
@@ -299,6 +300,7 @@ int main(int argc, char **argv) {
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 catch_sig = true;
                 catch_sig_int = atoi(optarg);
+                signal(catch_sig_int, sigHandler); 
                 break;
             case 'P':
                 check_verbose_flag (option_index, optarg, verbose_flag);
@@ -323,7 +325,8 @@ int main(int argc, char **argv) {
                 break;
             case 'I':
                 check_verbose_flag (option_index, optarg, verbose_flag);
-                catch_sig = false;
+                catch_sig_int = atoi(optarg);
+                signal (catch_sig_int, SIG_IGN); 
                 break;
             case 'D':
                 check_verbose_flag (option_index, optarg, verbose_flag);
@@ -370,12 +373,7 @@ int main(int argc, char **argv) {
         }
     }  // close while (1)
     // read and write the files
-    
-    //check if we're handling signals
-    if (catch_sig == true){
-        fprintf (stderr, "Exited with Error %d", catch_sig_int);
-        exit (catch_sig_int);
-    }
+
     if (exit_one == true){
         exit(1);
     }
