@@ -94,7 +94,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                 command_intput_fd = fd_table[atoi(argv[index_counter])];
                 //fprintf ("command_intput_fd is: %d \n", command_intput_fd);
                 input_index = atoi(argv[index_counter]); 
-                if (atoi(argv[index_counter]) >= fd_table_counter) {
+                if (atoi(argv[index_counter]) >= fd_table_counter || command_intput_fd == -1) {
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
                     exit (1);
                 }
@@ -105,7 +105,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
             else if (command_flag == 1){
                 command_output_fd = fd_table[atoi(argv[index_counter])];
                 //fprintf ("command_output_fd is: %d \n", command_output_fd);
-                if (atoi(argv[index_counter]) >= fd_table_counter) {
+                if (atoi(argv[index_counter]) >= fd_table_counter || command_output_fd == -1) {
                     fprintf (stderr, "File Descriptor for writing contents is wrong");
                     exit (1);
                     
@@ -120,7 +120,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                 command_error_fd = fd_table[atoi(argv[index_counter])];
                 //fprintf ("command_error_fd is: %d \n", command_error_fd);
                 
-                if (atoi(argv[index_counter]) >= fd_table_counter) {
+                if (atoi(argv[index_counter]) >= fd_table_counter || command_error_fd == -1) {
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
                     exit (1);
                 }
@@ -270,6 +270,7 @@ int main(int argc, char **argv) {
         switch (c){
             case 'E':
                 close (fd_table[atoi(optarg)]);
+                fd_table[atoi(optarg)] = -1; 
                 break;
             case 'R':
                 pass_flags = create_flags (O_RDONLY);
@@ -277,9 +278,12 @@ int main(int argc, char **argv) {
                 reset_flags (); 
                 break;
             case 'A':
-                check_verbose_flag (option_index, optarg, verbose_flag);
+                if (verbose_flag == true) {
+                    fprintf(stdout, "--abort \n" );
+                }
+                //check_verbose_flag (option_index, optarg, verbose_flag);
                 raise(SIGSEGV);
-                exit(1);
+                exit (139); 
                 break;
             case 'W':
                 pass_flags = create_flags (O_WRONLY);
@@ -306,7 +310,7 @@ int main(int argc, char **argv) {
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 int pipefd[2];
                 int pipe_output;
-                pipe_output = pipe2(pipefd, 0); 
+                pipe_output = pipe(pipefd); 
                 fd_table[fd_table_counter] = pipefd[0];
                 fd_table_counter++;
                 fd_table[fd_table_counter] = pipefd[1];
