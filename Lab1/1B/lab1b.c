@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#define _GNU_SOURCE           
+#define _GNU_SOURCE   
 
 int fd_table[100];
 int starting_fd_number = 0;
@@ -77,6 +77,9 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
     int command_flag = 0;
     char *cmd_args[argc];
     int temp_fd_table_counter = fd_table_counter - 3;
+    int input_index = 0; 
+    int output_index = 0; 
+    int err_index = 0; 
     
     while (index_counter < argc) {
         if (argv[index_counter][0] == '-') {
@@ -90,7 +93,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                 starting_fd_number = fd_table_counter - 3;
                 command_intput_fd = fd_table[atoi(argv[index_counter])];
                 //fprintf ("command_intput_fd is: %d \n", command_intput_fd);
-                
+                input_index = atoi(argv[index_counter]); 
                 if (atoi(argv[index_counter]) >= fd_table_counter) {
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
                     exit (1);
@@ -107,6 +110,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                     exit (1);
                     
                 }
+                output_index = atoi(argv[index_counter]); 
                 command_flag ++;
                 temp_fd_table_counter++;
             }
@@ -120,6 +124,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
                     exit (1);
                 }
+                err_index = atoi(argv[index_counter]); 
                 command_flag ++;
                 temp_fd_table_counter++;
             }
@@ -152,19 +157,32 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
     if (pid < 0) {
         abort();
     }
+
     else if (pid == 0){
         dup2 (command_intput_fd, 0);
         dup2 (command_output_fd, 1);
         dup2 (command_error_fd, 2);
         // close input_fd, outputfd, error_fd
-        close (fd_table[starting_fd_number]);
-        close (fd_table[starting_fd_number+1]);
-        close (fd_table[starting_fd_number+2]);
+        int i;
+
+        for ( i = 3; i < fd_table_counter; i++){
+            if (fd_table[i] != -1){
+                close (i);
+            }
+        }
+
+        for (i = 0; i < 3; i++){
+            if (fd_table[starting_fd_number] != -1) {
+                close (fd_table[starting_fd_number]);
+            }
+            starting_fd_number++; 
+        }
         
         int execvp_output = execvp (*cmd_args, cmd_args);
         if (execvp_output == -1){
             fprintf (stderr, "Error with execvp %s", strerror(errno));
         }
+        
         
     }
     else if (pid > 0) {
@@ -177,7 +195,7 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
 
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg) {
     check_verbose_flag (option_index, optarg, verbose_flag);
-    int input_fd = open (optarg, option_name);
+    int input_fd = open (optarg, option_name, 0644);
     if (input_fd == -1 ){
         fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
         exit_one = true;
@@ -193,6 +211,10 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
     if (verbose_flag == true){
         printf ("--%s %s \n", long_options[option_index].name , optarg);
     }
+}
+
+void sigHandler (int optarg) {
+    fprint (stderr, "%d caught \n", optarg); 
 }
 
 int create_flags (int original_flag){
@@ -279,19 +301,22 @@ int main(int argc, char **argv) {
                 catch_sig_int = atoi(optarg);
                 break;
             case 'P':
-                ;
+                check_verbose_flag (option_index, optarg, verbose_flag);
                 int pipefd[2];
                 int pipe_output;
-                pipe_output = pipe(pipefd); 
-                if (pipe_output == 0){
-                    fd_table[fd_table_counter] = pipefd[0];
+                pipe_output = pipe2(pipefd, 0); 
+                fd_table[fd_table_counter] = pipefd[0];
+                fd_table_counter++;
+                fd_table[fd_table_counter] = pipefd[1];
+                fd_table_counter++;
+                /*else {
+                    fd_table[fd_table_counter] = -1;
                     fd_table_counter++;
-                    fd_table[fd_table_counter] = pipefd[1];
+                    fd_table[fd_table_counter] = -1;
                     fd_table_counter++;
-                    } 
-                else {
                     exit_one = true; 
-                }
+                    printf ("ERROR PIPE FAIL\n"); 
+                }*/
                 break;
             case 'S':
                 pause();
