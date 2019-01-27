@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/wait.h>
 #define _GNU_SOURCE   
 
 int fd_table[100];
@@ -22,6 +23,7 @@ bool catch_sig = false;
 bool default_sig = false;
 int catch_sig_int = 0;
 int default_sig_int = 0;
+int pass_flags; 
 static int append_flag = 0;
 static int cloexec_flag = 0;
 static int creat_flag = 0;
@@ -35,7 +37,13 @@ static int sync_flag = 0;
 static int trunc_flag = 0;
 static int dsync_flag = 0; 
 
-int pass_flags;
+struct process_struct {
+    pid_t process_PID; 
+    char process_name[100];
+}; 
+
+struct process_struct all_processes[100]; 
+int all_processes_counter = 0; 
 
 static struct option long_options[] = {
     {"rdwr", required_argument, 0, 'B' },
@@ -61,21 +69,23 @@ static struct option long_options[] = {
     {"rsync",  no_argument, &rsync_flag, -1},
     {"sync",  no_argument, &sync_flag, -1},
     {"trunc",  no_argument, &trunc_flag, -1},
+    {"wait",  no_argument, 0, 'H'},
     {0, 0, 0, 0}};
+char *cmd_args[100];
 
 int create_flags (int original_flag); 
 void reset_flags (); 
-
-int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
+void clear_cmd_args(); 
+void handle_forking(int starting_fd_number);
+int parse_command_option (int optind, char **argv, int argc);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 
-int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
+int parse_command_option (int optind, char **argv, int argc) {
     int num_args = 0;
     int index_counter = optind;
     int arr_counter = 0;
     int command_flag = 0;
-    char *cmd_args[argc];
     int temp_fd_table_counter = fd_table_counter - 3;
     int input_index = 0; 
     int output_index = 0; 
@@ -152,7 +162,20 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
         exit_one = true;
         return num_args;
     }
+
+    handle_forking(starting_fd_number); 
+    clear_cmd_args (); 
     
+    return num_args + 4; // 4 is for 3 fd and the cmd name
+}
+
+void clear_cmd_args(){
+    int k; 
+    for (k=0; k <99; k++){
+        cmd_args[k] = NULL; 
+    }
+}
+void handle_forking(int starting_fd_number) {
     pid_t pid = fork ();
     if (pid < 0) {
         abort();
@@ -179,18 +202,14 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
         }
         
         int execvp_output = execvp (*cmd_args, cmd_args);
-        if (execvp_output == -1){
-            fprintf (stderr, "Error with execvp %s", strerror(errno));
-        }
-        
-        
+        if (execvp_output < 0) {
+            fprintf (stderr, "couldn't execute child process \n");
+        }   
     }
     else if (pid > 0) {
-        //printf("none of the above \n");
-        // printf ("pid is %d \n", pid);
     }
-    return num_args + 4; // 4 is for 3 fd and the cmd name
 }
+
 
 
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg) {
@@ -269,6 +288,7 @@ int main(int argc, char **argv) {
         
         switch (c){
             case 'E':
+                check_verbose_flag (option_index, optarg, verbose_flag);
                 close (fd_table[atoi(optarg)]);
                 fd_table[atoi(optarg)] = -1; 
                 break;
@@ -277,11 +297,33 @@ int main(int argc, char **argv) {
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 reset_flags (); 
                 break;
+            case 'H':
+                check_verbose_flag (option_index, optarg, verbose_flag);
+                pid_t wait_pid; 
+                int stat; 
+                int exit_stat; 
+
+                while (1) {
+                    wait_pid = wait(&stat); 
+                    if (wait_pid <= -1) {
+                        break; 
+                    }
+                    if (WIFEXITED(stat) == true){
+                        exit_stat = WEXITSTATUS(stat); 
+                    }
+                    int iterator; 
+                    for (iterator = 0; iterator < all_processes_counter-1; iterator++){
+                        if (all_processes[iterator].process_PID == wait_pid){
+                            printf ("finished command %s \n", all_processes[iterator].process_name);
+                        }
+                    }
+                }   
+                break; 
             case 'A':
                 if (verbose_flag == true) {
                     fprintf(stdout, "--abort \n" );
                 }
-                //check_verbose_flag (option_index, optarg, verbose_flag);
+                sleep (2);                 //check_verbose_flag (option_index, optarg, verbose_flag);
                 raise(SIGSEGV);
                 exit (139); 
                 break;
@@ -315,14 +357,6 @@ int main(int argc, char **argv) {
                 fd_table_counter++;
                 fd_table[fd_table_counter] = pipefd[1];
                 fd_table_counter++;
-                /*else {
-                    fd_table[fd_table_counter] = -1;
-                    fd_table_counter++;
-                    fd_table[fd_table_counter] = -1;
-                    fd_table_counter++;
-                    exit_one = true; 
-                    printf ("ERROR PIPE FAIL\n"); 
-                }*/
                 break;
             case 'S':
                 pause();
@@ -360,8 +394,14 @@ int main(int argc, char **argv) {
                     
                     printf ("--%s \n", v_str);
                 }
-                
-                int parse_command_option_ret = parse_command_option (optind, argv, argc, fd_table_counter, fd_table);
+                struct process_struct curr_process;
+                strcpy (curr_process.process_name, v_str);
+
+                all_processes[all_processes_counter] = curr_process; 
+                all_processes_counter++; 
+
+
+                int parse_command_option_ret = parse_command_option (optind, argv, argc);
                 optind += parse_command_option_ret;
                 break;
             }
