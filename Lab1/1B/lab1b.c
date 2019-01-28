@@ -76,7 +76,6 @@ char *cmd_args[100];
 int create_flags (int original_flag); 
 void reset_flags (); 
 void clear_cmd_args(); 
-void handle_forking(int starting_fd_number);
 int parse_command_option (int optind, char **argv, int argc);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
@@ -163,19 +162,6 @@ int parse_command_option (int optind, char **argv, int argc) {
         return num_args;
     }
 
-    handle_forking(starting_fd_number); 
-    clear_cmd_args (); 
-    
-    return num_args + 4; // 4 is for 3 fd and the cmd name
-}
-
-void clear_cmd_args(){
-    int k; 
-    for (k=0; k <99; k++){
-        cmd_args[k] = NULL; 
-    }
-}
-void handle_forking(int starting_fd_number) {
     pid_t pid = fork ();
     if (pid < 0) {
         abort();
@@ -188,18 +174,22 @@ void handle_forking(int starting_fd_number) {
         // close input_fd, outputfd, error_fd
         int i;
 
-        for ( i = 3; i < fd_table_counter; i++){
+        for ( i = 3; i <= fd_table_counter; i++){
             if (fd_table[i] != -1){
                 close (i);
             }
         }
 
-        for (i = 0; i < 3; i++){
-            if (fd_table[starting_fd_number] != -1) {
+        /*close (fd_table[starting_fd_number]); 
+        close (fd_table[starting_fd_number+1]); 
+        close (fd_table[starting_fd_number+2]); */
+
+        /*for (i = 0; i < 3; i++){
+            if (fd_table[starting_fd_number] == -1) {
                 close (fd_table[starting_fd_number]);
             }
             starting_fd_number++; 
-        }
+        }*/
         
         int execvp_output = execvp (*cmd_args, cmd_args);
         if (execvp_output < 0) {
@@ -208,7 +198,10 @@ void handle_forking(int starting_fd_number) {
     }
     else if (pid > 0) {
     }
+
+    return num_args + 4; // 4 is for 3 fd and the cmd name
 }
+
 
 
 
@@ -289,7 +282,7 @@ int main(int argc, char **argv) {
         switch (c){
             case 'E':
                 check_verbose_flag (option_index, optarg, verbose_flag);
-                close (fd_table[atoi(optarg)]);
+                close (atoi(optarg));
                 fd_table[atoi(optarg)] = -1; 
                 break;
             case 'R':
