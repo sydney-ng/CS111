@@ -13,6 +13,7 @@
 #define _GNU_SOURCE   
 
 int fd_table[100];
+int pipefd[2];
 int starting_fd_number = 0;
 int command_intput_fd = 0;
 int command_output_fd = 1;
@@ -76,11 +77,11 @@ char *cmd_args[100];
 int create_flags (int original_flag); 
 void reset_flags (); 
 void clear_cmd_args(); 
-int parse_command_option (int optind, char **argv, int argc, int curr_process_index);
+int parse_command_option (int optind, char **argv, int argc);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 
-int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
+int parse_command_option (int optind, char **argv, int argc) {
     int num_args = 0;
     int index_counter = optind;
     int arr_counter = 0;
@@ -174,12 +175,33 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
         // close input_fd, outputfd, error_fd
         int i;
 
-       // close (pipefd[0]);                 /* close all others */
-        //close (fd2[1]);
-
-        for ( i = 3; i <= fd_table_counter; i++){
-            close (i);
+        if (pipefd[input_index+1] == 1000) {
+            close (input_index+1); 
         }
+        if (pipefd[output_index+1] == 1000) {
+            close (output_index+1); 
+        }
+        if (pipefd[err_index+1] == 1000) {
+            close (err_index+1);
+        }
+        for ( i = 3; i <= fd_table_counter; i++){
+            if (fd_table[i] != -1){
+                close (i);
+            }
+        }
+
+        // if you have argv of file 
+
+        /*close (fd_table[starting_fd_number]); 
+        close (fd_table[starting_fd_number+1]); 
+        close (fd_table[starting_fd_number+2]); */
+
+        /*for (i = 0; i < 3; i++){
+            if (fd_table[starting_fd_number] == -1) {
+                close (fd_table[starting_fd_number]);
+            }
+            starting_fd_number++; 
+        }*/
         
         int execvp_output = execvp (*cmd_args, cmd_args);
         if (execvp_output < 0) {
@@ -187,7 +209,6 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
         }   
     }
     else if (pid > 0) {
-        all_processes[curr_process_index].process_PID = pid; 
     }
 
     return num_args + 4; // 4 is for 3 fd and the cmd name
@@ -288,7 +309,7 @@ int main(int argc, char **argv) {
                 int exit_stat; 
 
                 while (1) {
-                    wait_pid = waitpid(-1, &stat, 0); 
+                    wait_pid = wait(&stat); 
                     if (wait_pid <= -1) {
                         break; 
                     }
@@ -299,7 +320,7 @@ int main(int argc, char **argv) {
                     for (iterator = 0; iterator < all_processes_counter-1; iterator++){
                         if (all_processes[iterator].process_PID == wait_pid){
                             printf ("finished command %s \n", all_processes[iterator].process_name);
-                            break; 
+                            break;
                         }
                     }
                 }   
@@ -308,9 +329,8 @@ int main(int argc, char **argv) {
                 if (verbose_flag == true) {
                     fprintf(stdout, "--abort \n" );
                 }
-                sleep (2);                 //check_verbose_flag (option_index, optarg, verbose_flag);
-                raise(SIGSEGV);
-                exit (139); 
+                //check_verbose_flag (option_index, optarg, verbose_flag);
+                raise(11);
                 break;
             case 'W':
                 pass_flags = create_flags (O_WRONLY);
@@ -335,9 +355,10 @@ int main(int argc, char **argv) {
                 break;
             case 'P':
                 check_verbose_flag (option_index, optarg, verbose_flag);
-                int pipefd[2];
                 int pipe_output;
                 pipe_output = pipe(pipefd); 
+                pipefd[0] = 1000; 
+                pipefd[1] = 1000; 
                 fd_table[fd_table_counter] = pipefd[0];
                 fd_table_counter++;
                 fd_table[fd_table_counter] = pipefd[1];
@@ -382,11 +403,11 @@ int main(int argc, char **argv) {
                 struct process_struct curr_process;
                 strcpy (curr_process.process_name, v_str);
 
-                all_processes[all_processes_counter] = curr_process;  
-
-
-                int parse_command_option_ret = parse_command_option (optind, argv, argc, all_processes_counter);
+                all_processes[all_processes_counter] = curr_process; 
                 all_processes_counter++; 
+
+
+                int parse_command_option_ret = parse_command_option (optind, argv, argc);
                 optind += parse_command_option_ret;
                 break;
             }
