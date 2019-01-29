@@ -175,16 +175,7 @@ int parse_command_option (int optind, char **argv, int argc) {
         // close input_fd, outputfd, error_fd
         int i;
 
-        if (pipefd[input_index+1] == 1000) {
-            close (input_index+1); 
-        }
-        if (pipefd[output_index+1] == 1000) {
-            close (output_index+1); 
-        }
-        if (pipefd[err_index+1] == 1000) {
-            close (err_index+1);
-        }
-        for ( i = 3; i <= fd_table_counter; i++){
+        for ( i = 3; i <= fd_table_counter+3; i++){
             if (fd_table[i] != -1){
                 close (i);
             }
@@ -327,10 +318,13 @@ int main(int argc, char **argv) {
                 break; 
             case 'A':
                 if (verbose_flag == true) {
-                    fprintf(stdout, "--abort \n" );
+                    fprintf(stdout, "--abort \n");
+                    fflush(stdout); 
                 }
                 //check_verbose_flag (option_index, optarg, verbose_flag);
-                raise(11);
+                char *a = NULL;
+                char x = *a;
+                x = x + 'f'; 
                 break;
             case 'W':
                 pass_flags = create_flags (O_WRONLY);
@@ -349,7 +343,6 @@ int main(int argc, char **argv) {
                 break;
             case 'N':
                 check_verbose_flag (option_index, optarg, verbose_flag);
-                catch_sig = true;
                 catch_sig_int = atoi(optarg);
                 signal(catch_sig_int, sigHandler); 
                 break;
@@ -357,8 +350,6 @@ int main(int argc, char **argv) {
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 int pipe_output;
                 pipe_output = pipe(pipefd); 
-                pipefd[0] = 1000; 
-                pipefd[1] = 1000; 
                 fd_table[fd_table_counter] = pipefd[0];
                 fd_table_counter++;
                 fd_table[fd_table_counter] = pipefd[1];
