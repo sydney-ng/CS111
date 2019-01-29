@@ -25,6 +25,7 @@ bool default_sig = false;
 int catch_sig_int = 0;
 int default_sig_int = 0;
 int pass_flags; 
+int current_max_index = 0; 
 static int append_flag = 0;
 static int cloexec_flag = 0;
 static int creat_flag = 0;
@@ -77,11 +78,11 @@ char *cmd_args[100];
 int create_flags (int original_flag); 
 void reset_flags (); 
 void clear_cmd_args(); 
-int parse_command_option (int optind, char **argv, int argc);
+int parse_command_option (int optind, char **argv, int argc, int curr_process_index);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 
-int parse_command_option (int optind, char **argv, int argc) {
+int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
     int num_args = 0;
     int index_counter = optind;
     int arr_counter = 0;
@@ -164,6 +165,8 @@ int parse_command_option (int optind, char **argv, int argc) {
     }
 
     pid_t pid = fork ();
+    all_processes[curr_process_index].process_PID = pid;
+
     if (pid < 0) {
         abort();
     }
@@ -180,19 +183,6 @@ int parse_command_option (int optind, char **argv, int argc) {
                 close (i);
             }
         }
-
-        // if you have argv of file 
-
-        /*close (fd_table[starting_fd_number]); 
-        close (fd_table[starting_fd_number+1]); 
-        close (fd_table[starting_fd_number+2]); */
-
-        /*for (i = 0; i < 3; i++){
-            if (fd_table[starting_fd_number] == -1) {
-                close (fd_table[starting_fd_number]);
-            }
-            starting_fd_number++; 
-        }*/
         
         int execvp_output = execvp (*cmd_args, cmd_args);
         if (execvp_output < 0) {
@@ -204,9 +194,6 @@ int parse_command_option (int optind, char **argv, int argc) {
 
     return num_args + 4; // 4 is for 3 fd and the cmd name
 }
-
-
-
 
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg) {
     check_verbose_flag (option_index, optarg, verbose_flag);
@@ -269,19 +256,13 @@ int main(int argc, char **argv) {
     int ret, ret2;
     char buf[1024];
     int c;
-    // default input_fd numbers
-    int input_fd; /*
-                   int output_fd = 1;
-                   int error_fd = 2; */
-    //    int tracker = 1;
+    int input_fd; 
     int new_fd;
     bool verbose_flag = false;
     while (1){
-        //printf ("here at the top of while (1)\n");
         int option_index = 0;
         c = getopt_long(argc, argv, "abc:d:f", long_options, &option_index);
-        //bool valid_command = false;
-        
+
         switch (c){
             case 'E':
                 check_verbose_flag (option_index, optarg, verbose_flag);
@@ -299,18 +280,20 @@ int main(int argc, char **argv) {
                 int stat; 
                 int exit_stat; 
 
-                while (1) {
+                int temp_pi =0;
+                int iterator; 
+                while (temp_pi < (all_processes_counter -1)) {
+                    
                     wait_pid = wait(&stat); 
-                    if (wait_pid <= -1) {
-                        break; 
-                    }
+            
                     if (WIFEXITED(stat) == true){
                         exit_stat = WEXITSTATUS(stat); 
                     }
-                    int iterator; 
+                    
                     for (iterator = 0; iterator < all_processes_counter-1; iterator++){
                         if (all_processes[iterator].process_PID == wait_pid){
                             printf ("finished command %s \n", all_processes[iterator].process_name);
+                            temp_pi++;
                             break;
                         }
                     }
@@ -321,7 +304,6 @@ int main(int argc, char **argv) {
                     fprintf(stdout, "--abort \n");
                     fflush(stdout); 
                 }
-                //check_verbose_flag (option_index, optarg, verbose_flag);
                 char *a = NULL;
                 char x = *a;
                 x = x + 'f'; 
@@ -371,8 +353,8 @@ int main(int argc, char **argv) {
             case 'C': {
                 char v_str[100];
                 static char long_option_name[100];
-                if (verbose_flag == true){
-                    strcpy (v_str, long_options[option_index].name);
+                // create string with arg 
+                strcpy (v_str, long_options[option_index].name);
                     strcat (v_str, " ");
                     int index_counter_copy = optind;
                     while (index_counter_copy < argc) {
@@ -388,17 +370,16 @@ int main(int argc, char **argv) {
                         }
                         index_counter_copy++;
                     }
-                    
+                if (verbose_flag == true){
                     printf ("--%s \n", v_str);
                 }
                 struct process_struct curr_process;
                 strcpy (curr_process.process_name, v_str);
 
                 all_processes[all_processes_counter] = curr_process; 
+
+                int parse_command_option_ret = parse_command_option (optind, argv, argc, all_processes_counter);
                 all_processes_counter++; 
-
-
-                int parse_command_option_ret = parse_command_option (optind, argv, argc);
                 optind += parse_command_option_ret;
                 break;
             }
