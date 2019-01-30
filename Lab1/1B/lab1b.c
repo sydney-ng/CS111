@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
         switch (c){
             case 'E':
                 check_verbose_flag (option_index, optarg, verbose_flag);
-                close (atoi(optarg));
+                close (fd_table[atoi(optarg)]);
                 fd_table[atoi(optarg)] = -1; 
                 break;
             case 'R':
@@ -291,18 +291,17 @@ int main(int argc, char **argv) {
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 pid_t wait_pid; 
                 int stat; 
-                int exit_stat; 
+                int exit_stat = 0; 
 
                 int temp_pi =0;
                 int iterator; 
                 //while (temp_pi != all_processes_counter) {
                 while (1) {
 
-                    wait_pid = waitpid(-1, &stat, 0);
+                    wait_pid = wait(&stat);
             
                     if (wait_pid < 0) {
                        break;
-
                     }
 
                     if (WIFEXITED(stat) == true){
@@ -311,8 +310,9 @@ int main(int argc, char **argv) {
                     
                     for (iterator = 0; iterator <= all_processes_counter; iterator++){
                         if (process_PID_array[iterator] == wait_pid){
-                            printf ("exit %d %s", exit_stat, process_name_array[iterator]);
+                            printf ("exit %d %s \n", exit_stat, process_name_array[iterator]);
                             fflush(stdout); 
+                            break; 
                         }
                     }
 
