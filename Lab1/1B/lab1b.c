@@ -83,7 +83,7 @@ void clear_cmd_args();
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
-void find_process(int exit_num, id_t wait_pid); 
+void find_process(int exit_num, id_t wait_pid, char type); 
 
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
     int num_args = 0;
@@ -225,7 +225,6 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
     if (verbose_flag == true){
         printf ("--%s %s \n", long_options[option_index].name , optarg);
         fflush(stdout); 
-
     }
 }
 
@@ -268,13 +267,21 @@ void reset_flags () {
    trunc_flag = 0; 
 }
 
-void find_process(int exit_num, id_t wait_pid) {
+void find_process(int exit_num, id_t wait_pid, char type) {
     int iterator; 
     for (iterator = 0; iterator <= all_processes_counter; iterator++){
         if (process_PID_array[iterator] == wait_pid){
-            printf ("exit %d %s \n", exit_num, process_name_array[iterator]);
-            fflush(stdout); 
-            break; 
+            if (type == 'e'){
+                printf ("exit %d %s \n", exit_num, process_name_array[iterator]);
+                fflush(stdout); 
+                break; 
+            }
+             if (type == 's'){
+                printf ("signal %d %s \n", exit_num, process_name_array[iterator]);
+                fflush(stdout); 
+                break; 
+            }
+           
         }
     }           
 }
@@ -307,7 +314,6 @@ int main(int argc, char **argv) {
                 int stat; 
                 int exit_stat = 0;
                 int sig_stat = 0;  
-
                 int temp_pi =0;
                 //while (temp_pi != all_processes_counter) {
                 while (1) {
@@ -321,8 +327,9 @@ int main(int argc, char **argv) {
                         exit_stat = WEXITSTATUS(stat); 
                         if (exit_max < exit_stat) {
                             exit_max = exit_stat;
+
                         }
-                     find_process(exit_stat, wait_pid); 
+                     find_process(exit_stat, wait_pid, 'e'); 
 
                     }
                     else if (WIFSIGNALED(stat) == true){
@@ -330,7 +337,7 @@ int main(int argc, char **argv) {
                         if (sig_max < sig_stat) {
                             sig_max = sig_stat;
                         }      
-                    find_process(sig_stat, wait_pid); 
+                    find_process(sig_stat, wait_pid,  's'); 
                    }
                    else {
                     fprintf(stdout, "can't find child process \n");
@@ -447,7 +454,6 @@ int main(int argc, char **argv) {
             case '?':
                 fprintf (stderr, "Invalid Command Passed");
                 fflush(stderr); 
-
                 exit (1);
                 break;
             default:
@@ -460,13 +466,13 @@ int main(int argc, char **argv) {
     // read and write the files
 
     if (sig_max != -1){
-        exit (sig_max);
+        exit (sig_max + 128);
+    }
+     else if (exit_max != -1){
+        exit (exit_max); 
     }
     else if (exit_one == true){
         exit(1);
-    }
-    else if (exit_max != -1){
-        exit (exit_max); 
     }
     else {
         exit (0); 
