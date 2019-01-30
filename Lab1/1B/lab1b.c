@@ -25,6 +25,8 @@ bool default_sig = false;
 int catch_sig_int = 0;
 int default_sig_int = 0;
 int pass_flags; 
+int exit_max = -1; 
+int sig_max = -1; 
 int current_max_index = 0; 
 static int append_flag = 0;
 static int cloexec_flag = 0;
@@ -37,7 +39,7 @@ static int nonblock_flag = 0;
 static int rsync_flag = 0;
 static int sync_flag = 0;
 static int trunc_flag = 0;
-static int dsync_flag = 0; 
+static int dsync_flag = 0;
 
 //for wait
 int process_pid_counter = 0; 
@@ -81,6 +83,7 @@ void clear_cmd_args();
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index);
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
+void find_process(int exit_num, id_t wait_pid); 
 
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
     int num_args = 0;
@@ -265,6 +268,17 @@ void reset_flags () {
    trunc_flag = 0; 
 }
 
+void find_process(int exit_num, id_t wait_pid) {
+    int iterator; 
+    for (iterator = 0; iterator <= all_processes_counter; iterator++){
+        if (process_PID_array[iterator] == wait_pid){
+            printf ("exit %d %s \n", exit_num, process_name_array[iterator]);
+            fflush(stdout); 
+            break; 
+        }
+    }           
+}
+
 int main(int argc, char **argv) {
     int ret, ret2;
     char buf[1024];
@@ -291,13 +305,12 @@ int main(int argc, char **argv) {
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 pid_t wait_pid; 
                 int stat; 
-                int exit_stat = 0; 
+                int exit_stat = 0;
+                int sig_stat = 0;  
 
                 int temp_pi =0;
-                int iterator; 
                 //while (temp_pi != all_processes_counter) {
                 while (1) {
-
                     wait_pid = wait(&stat);
             
                     if (wait_pid < 0) {
@@ -306,18 +319,25 @@ int main(int argc, char **argv) {
 
                     if (WIFEXITED(stat) == true){
                         exit_stat = WEXITSTATUS(stat); 
-                    }
-                    
-                    for (iterator = 0; iterator <= all_processes_counter; iterator++){
-                        if (process_PID_array[iterator] == wait_pid){
-                            printf ("exit %d %s \n", exit_stat, process_name_array[iterator]);
-                            fflush(stdout); 
-                            break; 
+                        if (exit_max < exit_stat) {
+                            exit_max = exit_stat;
                         }
-                    }
+                     find_process(exit_stat, wait_pid); 
 
+                    }
+                    else if (WIFSIGNALED(stat) == true){
+                        sig_stat = WTERMSIG(stat); 
+                        if (sig_max < sig_stat) {
+                            sig_max = sig_stat;
+                        }      
+                    find_process(sig_stat, wait_pid); 
+                   }
+                   else {
+                    fprintf(stdout, "can't find child process \n");
+                    fflush(stdout);    
+                    exit (1); 
+                   }
                 }
-                //}   
                 break; 
             case 'A':
                 if (verbose_flag == true) {
@@ -439,8 +459,16 @@ int main(int argc, char **argv) {
     }  // close while (1)
     // read and write the files
 
-    if (exit_one == true){
+    if (sig_max != -1){
+        exit (sig_max);
+    }
+    else if (exit_one == true){
         exit(1);
     }
-    exit (0);
+    else if (exit_max != -1){
+        exit (exit_max); 
+    }
+    else {
+        exit (0); 
+    }
 }
