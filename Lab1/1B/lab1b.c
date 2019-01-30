@@ -107,6 +107,7 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
                 input_index = atoi(argv[index_counter]); 
                 if (atoi(argv[index_counter]) >= fd_table_counter || command_intput_fd == -1) {
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
+                    fflush(stderr); 
                     exit (1);
                 }
                 temp_fd_table_counter++;
@@ -118,6 +119,7 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
                 //fprintf ("command_output_fd is: %d \n", command_output_fd);
                 if (atoi(argv[index_counter]) >= fd_table_counter || command_output_fd == -1) {
                     fprintf (stderr, "File Descriptor for writing contents is wrong");
+                    fflush(stderr); 
                     exit (1);     
                 }
                 output_index = atoi(argv[index_counter]); 
@@ -132,6 +134,8 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
                 
                 if (atoi(argv[index_counter]) >= fd_table_counter || command_error_fd == -1) {
                     fprintf (stderr, "File Descriptor for reading contents is wrong");
+                    fflush(stderr); 
+
                     exit (1);
                 }
                 err_index = atoi(argv[index_counter]); 
@@ -159,6 +163,8 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
     // no command given
     if (arr_counter < 1) {
         fprintf (stderr, "--command has no commands, error");
+        fflush(stderr); 
+
         exit_one = true;
         return num_args;
     }
@@ -178,7 +184,7 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
         // close input_fd, outputfd, error_fd
         int i;
 
-        for ( i = 3; i <= fd_table_counter+3; i++){
+        for ( i = 3; i < fd_table_counter+3; i++){
             if (fd_table[i] != -1){
                 close (i);
             }
@@ -187,6 +193,8 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
         int execvp_output = execvp (*cmd_args, cmd_args);
         if (execvp_output < 0) {
             fprintf (stderr, "couldn't execute child process \n");
+            fflush(stderr); 
+
         }   
     }
     else if (pid > 0) {
@@ -199,6 +207,8 @@ void file_opening_options (int option_name, bool verbose_flag, int option_index,
     int input_fd = open (optarg, option_name, 0644);
     if (input_fd == -1 ){
         fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
+        fflush(stderr); 
+
         exit_one = true;
     }
     fd_table[fd_table_counter] = input_fd;
@@ -211,11 +221,15 @@ void file_opening_options (int option_name, bool verbose_flag, int option_index,
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
     if (verbose_flag == true){
         printf ("--%s %s \n", long_options[option_index].name , optarg);
+        fflush(stdout); 
+
     }
 }
 
 void sigHandler (int optarg) {
     fprintf (stderr, "%d caught \n", optarg); 
+    fflush(stderr); 
+
     exit (optarg); 
 }
 
@@ -281,23 +295,29 @@ int main(int argc, char **argv) {
 
                 int temp_pi =0;
                 int iterator; 
-                while (temp_pi < (all_processes_counter -1)) {
-                    
-                    wait_pid = wait(&stat); 
+                //while (temp_pi != all_processes_counter) {
+                while (1) {
+
+                    wait_pid = waitpid(-1, &stat, 0);
             
+                    if (wait_pid < 0) {
+                       break;
+
+                    }
+
                     if (WIFEXITED(stat) == true){
                         exit_stat = WEXITSTATUS(stat); 
                     }
                     
-                    for (iterator = 0; iterator < all_processes_counter-1; iterator++){
-                        if (process_PID_array[process_pid_counter] == wait_pid){
-                            printf ("finished command %s \n", process_name_array[process_name_counter]);
+                    for (iterator = 0; iterator <= all_processes_counter; iterator++){
+                        if (process_PID_array[iterator] == wait_pid){
+                            printf ("exit %d %s", exit_stat, process_name_array[iterator]);
                             fflush(stdout); 
-                            temp_pi++;
-                            break;
                         }
                     }
-                }   
+
+                }
+                //}   
                 break; 
             case 'A':
                 if (verbose_flag == true) {
@@ -377,7 +397,7 @@ int main(int argc, char **argv) {
 
                 int it_argnum = 0; 
 
-                while (it_argnum <= strlen(v_str)-1){
+                while (it_argnum <= (strlen(v_str)-2)){
                     c1 = realloc(c1, (c1_counter+1)*sizeof(char));
                     if (v_str[14+it_argnum] != '\0'){
                         c1 [c1_counter] = v_str [14 + it_argnum]; 
@@ -389,9 +409,10 @@ int main(int argc, char **argv) {
                     }
                 }
 
-                c1[c1_counter] = '\0'; 
+                c1[c1_counter] = 0; 
                 if (verbose_flag == true){
-                    printf ("--%s \n", v_str);
+                    printf ("--%s \n", v_str); 
+                    fflush(stdout); 
                 }
 
                 process_name_array = realloc(process_name_array, (process_name_counter+1)*sizeof(char*));
@@ -405,6 +426,8 @@ int main(int argc, char **argv) {
             }
             case '?':
                 fprintf (stderr, "Invalid Command Passed");
+                fflush(stderr); 
+
                 exit (1);
                 break;
             default:
