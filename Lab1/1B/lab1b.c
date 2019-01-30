@@ -39,13 +39,13 @@ static int sync_flag = 0;
 static int trunc_flag = 0;
 static int dsync_flag = 0; 
 
-struct process_struct {
-    pid_t process_PID; 
-    char process_name[100];
-}; 
+//for wait
+int process_pid_counter = 0; 
+pid_t process_PID_array[100]; 
 
-struct process_struct all_processes[100]; 
-int all_processes_counter = 0; 
+int all_processes_counter = 0;  // increments every time we call command 
+int process_name_counter = 0; 
+char **process_name_array = NULL; 
 
 static struct option long_options[] = {
     {"rdwr", required_argument, 0, 'B' },
@@ -118,8 +118,7 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
                 //fprintf ("command_output_fd is: %d \n", command_output_fd);
                 if (atoi(argv[index_counter]) >= fd_table_counter || command_output_fd == -1) {
                     fprintf (stderr, "File Descriptor for writing contents is wrong");
-                    exit (1);
-                    
+                    exit (1);     
                 }
                 output_index = atoi(argv[index_counter]); 
                 command_flag ++;
@@ -127,7 +126,7 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
             }
             // error
             else if (command_flag == 2){
-                
+
                 command_error_fd = fd_table[atoi(argv[index_counter])];
                 //fprintf ("command_error_fd is: %d \n", command_error_fd);
                 
@@ -165,7 +164,8 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
     }
 
     pid_t pid = fork ();
-    all_processes[curr_process_index].process_PID = pid;
+    process_PID_array[process_pid_counter] = pid;
+    process_pid_counter++;
 
     if (pid < 0) {
         abort();
@@ -191,7 +191,6 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
     }
     else if (pid > 0) {
     }
-
     return num_args + 4; // 4 is for 3 fd and the cmd name
 }
 
@@ -291,8 +290,9 @@ int main(int argc, char **argv) {
                     }
                     
                     for (iterator = 0; iterator < all_processes_counter-1; iterator++){
-                        if (all_processes[iterator].process_PID == wait_pid){
-                            printf ("finished command %s \n", all_processes[iterator].process_name);
+                        if (process_PID_array[process_pid_counter] == wait_pid){
+                            printf ("finished command %s \n", process_name_array[process_name_counter]);
+                            fflush(stdout); 
                             temp_pi++;
                             break;
                         }
@@ -352,34 +352,54 @@ int main(int argc, char **argv) {
                 break;
             case 'C': {
                 char v_str[100];
+                int epn_val_flag = 0;
+                int epn_num = 0;
+                char *c1 = NULL; 
+                int c1_counter = 0; 
+                int arg_number = 1; 
+
                 static char long_option_name[100];
                 // create string with arg 
                 strcpy (v_str, long_options[option_index].name);
                     strcat (v_str, " ");
                     int index_counter_copy = optind;
                     while (index_counter_copy < argc) {
-                        if (argv[index_counter_copy][0] == '-') {
-                            if (argv[index_counter_copy] [1] == '-') {
+                        if ((argv[index_counter_copy][0] == '-') && (argv[index_counter_copy] [1] == '-')) {
                                 break;
                             }
-                        }
                         else {
                             strcat(v_str, argv[index_counter_copy]);
                             strcat (v_str, " ");
-                            
+                            arg_number++;
                         }
                         index_counter_copy++;
                     }
+
+                int it_argnum = 0; 
+
+                while (it_argnum <= strlen(v_str)-1){
+                    c1 = realloc(c1, (c1_counter+1)*sizeof(char));
+                    if (v_str[14+it_argnum] != '\0'){
+                        c1 [c1_counter] = v_str [14 + it_argnum]; 
+                        c1_counter++; 
+                        it_argnum++; 
+                    }
+                    else {
+                        break; 
+                    }
+                }
+
+                c1[c1_counter] = '\0'; 
                 if (verbose_flag == true){
                     printf ("--%s \n", v_str);
                 }
-                struct process_struct curr_process;
-                strcpy (curr_process.process_name, v_str);
 
-                all_processes[all_processes_counter] = curr_process; 
+                process_name_array = realloc(process_name_array, (process_name_counter+1)*sizeof(char*));
+                process_name_array[process_name_counter] = c1; 
 
-                int parse_command_option_ret = parse_command_option (optind, argv, argc, all_processes_counter);
-                all_processes_counter++; 
+                int parse_command_option_ret = parse_command_option (optind, argv, argc, process_name_counter);
+                process_name_counter++; 
+                all_processes_counter++;
                 optind += parse_command_option_ret;
                 break;
             }
