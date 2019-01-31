@@ -269,7 +269,7 @@ void reset_flags () {
 
 void find_process(int exit_num, id_t wait_pid, char type) {
     int iterator; 
-    for (iterator = 0; iterator <= all_processes_counter; iterator++){
+    for (iterator = 0; iterator < all_processes_counter; iterator++){
         if (process_PID_array[iterator] == wait_pid){
             if (type == 'e'){
                 printf ("exit %d %s \n", exit_num, process_name_array[iterator]);
@@ -281,7 +281,6 @@ void find_process(int exit_num, id_t wait_pid, char type) {
                 fflush(stdout); 
                 break; 
             }
-           
         }
     }           
 }
@@ -339,11 +338,11 @@ int main(int argc, char **argv) {
                         }      
                     find_process(sig_stat, wait_pid,  's'); 
                    }
-                   else {
+                   /*else {
                     fprintf(stdout, "can't find child process \n");
                     fflush(stdout);    
                     exit (1); 
-                   }
+                   }*/
                 }
                 break; 
             case 'A':
@@ -454,7 +453,7 @@ int main(int argc, char **argv) {
             case '?':
                 fprintf (stderr, "Invalid Command Passed");
                 fflush(stderr); 
-                exit (1);
+                exit_one = true; 
                 break;
             default:
                 break; // close case 'C'
