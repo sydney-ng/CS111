@@ -10,6 +10,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <sys/resource.h>
 #define _GNU_SOURCE   
 
@@ -87,31 +88,34 @@ int parse_command_option (int optind, char **argv, int argc, int curr_process_in
 void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 void find_process(int exit_num, id_t wait_pid, char type); 
-void check_profile_flag(bool profile_flag, int option_index, char* optarg); 
+struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se); 
 
-void check_profile_flag(bool profile_flag, int option_index, char* optarg){
-    if (profile_flag==true){
-        printf ("--%s for %s \n", long_options[option_index].name , optarg);
-        struct rusage r_usage;
-        getrusage(RUSAGE_SELF,&r_usage);
-        printf("user time used = %ld\n",r_usage.ru_utime);
-        printf("system time used = %ld\n",r_usage.ru_stime);
-        printf("max resident set size = %ld\n",r_usage.ru_maxrss);
-        printf("integral shared memory size = %ld\n",r_usage.ru_ixrss);
-        printf("integral unshared data = %ld\n",r_usage.ru_idrss);
-        printf("integral unshared stack = %ld\n",r_usage.ru_isrss);
-        printf("page reclaims = %ld\n",r_usage.ru_minflt);
-        printf("page faults = %ld\n",r_usage.ru_majflt);
-        printf("swaps = %ld\n",r_usage.ru_nswap);
-        printf("block input operations = %ld\n",r_usage.ru_inblock);
-        printf("block output operations = %ld\n",r_usage.ru_oublock);
-        printf("messages sent = %ld\n",r_usage.ru_msgsnd);
-        printf("messages received = %ld\n",r_usage.ru_msgrcv);
-        printf("signals received = %ld\n",r_usage.ru_nsignals);
-        printf("voluntary context switches = %ld\n",r_usage.ru_nvcsw);
-        printf("involuntary = %ld\n",r_usage.ru_nivcsw);
+struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se){
+    struct rusage r_usage;
+    getrusage(RUSAGE_SELF,&r_usage);
+    if (se == 'e'){
+        printf ("--%s: ", long_options[option_index].name , optarg);
+        printf("user time used = %ld ",r_usage.ru_utime);
+        printf(",system time used = %ld ",r_usage.ru_stime);
+        printf(",max resident set size = %ld ",r_usage.ru_maxrss);
+        printf(",integral shared memory size = %ld ",r_usage.ru_ixrss);
+        printf(",integral unshared data = %ld ",r_usage.ru_idrss);
+        printf(",integral unshared stack = %ld ",r_usage.ru_isrss);
+        printf(",page reclaims = %ld ",r_usage.ru_minflt);
+        printf(",page faults = %ld ",r_usage.ru_majflt);
+        printf(",swaps = %ld ",r_usage.ru_nswap);
+        printf(",block input operations = %ld ",r_usage.ru_inblock);
+        printf(",block output operations = %ld ",r_usage.ru_oublock);
+        printf(",messages sent = %ld ",r_usage.ru_msgsnd);
+        printf(",messages received = %ld ",r_usage.ru_msgrcv);
+        printf(",signals received = %ld ",r_usage.ru_nsignals);
+        printf(",voluntary context switches = %ld ",r_usage.ru_nvcsw);
+        printf(",involuntary = %ld ",r_usage.ru_nivcsw);
         fflush(stdout);
     }
+   
+    
+    return r_usage.ru_utime; 
 }
 
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
@@ -316,6 +320,9 @@ void find_process(int exit_num, id_t wait_pid, char type) {
 
 int main(int argc, char **argv) {
     int ret, ret2;
+    struct timeval start_time; 
+    struct timeval end_time; 
+    struct timeval time_diff; 
     char buf[1024];
     int c;
     int input_fd; 
@@ -327,18 +334,37 @@ int main(int argc, char **argv) {
 
         switch (c){
             case 'E':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 close (fd_table[atoi(optarg)]);
                 fd_table[atoi(optarg)] = -1; 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff);
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                }
                 break;
             case 'R':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 pass_flags = create_flags (O_RDONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 reset_flags (); 
-                check_profile_flag(profile_flag, option_index, optarg);  
-                break;
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                }
+               break;
             case 'H':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 pid_t wait_pid; 
                 int stat; 
@@ -369,15 +395,18 @@ int main(int argc, char **argv) {
                         }      
                     find_process(sig_stat, wait_pid,  's'); 
                    }
-                   /*else {
-                    fprintf(stdout, "can't find child process \n");
-                    fflush(stdout);    
-                    exit (1); 
-                   }*/
                 }
-                check_profile_flag(profile_flag, option_index, optarg);  
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break; 
-            case 'A':
+            case 'A': 
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 if (verbose_flag == true) {
                     fprintf(stdout, "--abort \n");
                     fflush(stdout); 
@@ -385,37 +414,77 @@ int main(int argc, char **argv) {
                 char *a = NULL;
                 char x = *a;
                 x = x + 'f'; 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'W':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 pass_flags = create_flags (O_WRONLY);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 reset_flags (); 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'B':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 pass_flags = create_flags (O_RDWR);
                 file_opening_options (pass_flags, verbose_flag, option_index, optarg);
                 reset_flags (); 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'V':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 printf ("--%s %s \n", long_options[option_index].name , optarg);
                 verbose_flag = true;
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'N':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 catch_sig_int = atoi(optarg);
                 signal(catch_sig_int, sigHandler); 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
              case 'Z':
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 profile_flag = true; 
                 break; 
             case 'P':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 int pipe_output;
                 pipe_output = pipe(pipefd); 
@@ -423,25 +492,57 @@ int main(int argc, char **argv) {
                 fd_table_counter++;
                 fd_table[fd_table_counter] = pipefd[1];
                 fd_table_counter++;
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'S':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 pause();
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'I':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 catch_sig_int = atoi(optarg);
                 signal (catch_sig_int, SIG_IGN); 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'D':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 check_verbose_flag (option_index, optarg, verbose_flag);
                 default_sig_int = atoi(optarg);
                 signal(default_sig_int, SIG_DFL);
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout);
+                } 
                 break;
             case 'C': {
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 char v_str[100];
                 int epn_val_flag = 0;
                 int epn_num = 0;
@@ -493,14 +594,27 @@ int main(int argc, char **argv) {
                 process_name_counter++; 
                 all_processes_counter++;
                 optind += parse_command_option_ret;
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout); 
+                } 
                 break;
             }
             case '?':
+                if (profile_flag == true) {
+                    start_time = check_profile_flag(profile_flag, option_index, optarg, 's'); 
+                }
                 fprintf (stderr, "Invalid Command Passed");
                 fflush(stderr); 
                 exit_one = true; 
-                check_profile_flag(profile_flag, option_index, optarg); 
+                if (profile_flag == true) {
+                    end_time = check_profile_flag(profile_flag, option_index, optarg, 'e');
+                    timersub(&end_time, &start_time, &time_diff); 
+                    printf("time to execute this process ONLY = %ld\n", time_diff);
+                    fflush(stdout); 
+                } 
                 break;
             default:
                 break; // close case 'C'
