@@ -79,6 +79,7 @@ static struct option long_options[] = {
     {"trunc",  no_argument, &trunc_flag, -1},
     {"wait",  no_argument, 0, 'H'},
     {0, 0, 0, 0}};
+
 char *cmd_args[100];
 
 int create_flags (int original_flag); 
@@ -89,6 +90,7 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 void find_process(int exit_num, id_t wait_pid, char type); 
 struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se); 
+void profile_children(); 
 
 struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se){
     struct rusage r_usage;
@@ -110,13 +112,22 @@ struct timeval check_profile_flag(bool profile_flag, int option_index, char* opt
         printf(",messages received = %ld ",r_usage.ru_msgrcv);
         printf(",signals received = %ld ",r_usage.ru_nsignals);
         printf(",voluntary context switches = %ld ",r_usage.ru_nvcsw);
-        printf(",involuntary = %ld ",r_usage.ru_nivcsw);
+        printf(",involuntary = %ld\n",r_usage.ru_nivcsw);
         fflush(stdout);
     }
-   
-    
     return r_usage.ru_utime; 
 }
+
+void profile_children (){
+    struct rusage r_usage;
+    if (profile_flag == true) {
+        getrusage(RUSAGE_CHILDREN,&r_usage);
+        printf("user time used = %ld ",r_usage.ru_utime);
+        fflush(stdout);
+    }
+    return; 
+}
+
 
 int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
     int num_args = 0;
@@ -625,6 +636,7 @@ int main(int argc, char **argv) {
     }  // close while (1)
     // read and write the files
 
+    profile_children(); 
     if (sig_max != -1){
         exit (sig_max + 128);
     }
