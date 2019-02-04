@@ -1,6 +1,6 @@
 ./simpsh --profile --rdwr pg98.txt --creat --trunc --rdwr test1out.txt --creat --trunc --rdwr test1err.txt --pipe --command 0 4 2 wc -c --wait --command 3 1 2 wc -l --close 0 --close 1 --close 2 --close 4 --close 3 --wait
 
-./simpsh --profile --rdwr pg98.txt --creat --trunc --rdwr test1out.txt --creat --trunc --rdwr test1err.txt --pipe --command 0 4 2 wc -l --wait --command 3 1 2 wc -c --close 0 --close 1 --close 2 --close 4 --close 3 --wait
+./simpsh --profile --rdwr pg98.txt --creat --trunc --rdwr test1out.txt --creat --trunc --rdwr test1err.txt --pipe --command 0 4 2 wc -w --wait --command 3 1 2 wc -c --close 0 --close 1 --close 2 --close 4 --close 3 --wait
 
 ./simpsh --profile --rdwr pg98.txt --creat --trunc --rdwr test1out.txt --creat --trunc --rdwr test1err.txt --pipe --command 0 4 2 sort --command 3 1 2 cat --close 0 --close 1 --close 2 --close 4 --close 3 --wait
 
@@ -10,3 +10,7 @@
 2 = test1err.txt 
 3 = pipe R
 4 = pipe W
+
+cat pg98.txt | wc -c | wc -l
+cat pg98.txt | wc -l | wc -c
+cat pg98.txt | sort | cat
