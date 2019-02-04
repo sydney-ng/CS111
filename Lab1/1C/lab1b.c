@@ -43,8 +43,6 @@ static int rsync_flag = 0;
 static int sync_flag = 0;
 static int trunc_flag = 0;
 static int dsync_flag = 0;
-struct rusage r_usage_total;
-
 
 //for wait
 int process_pid_counter = 0; 
@@ -92,8 +90,7 @@ void check_verbose_flag (int option_index, char* optarg, bool verbose_flag);
 void file_opening_options (int option_name, bool verbose_flag, int option_index, char* optarg);
 void find_process(int exit_num, id_t wait_pid, char type); 
 struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se); 
-void profile_children();
-void profile_total(); 
+void profile_children(); 
 
 struct timeval check_profile_flag(bool profile_flag, int option_index, char* optarg, char se){
     struct rusage r_usage;
@@ -115,7 +112,7 @@ struct timeval check_profile_flag(bool profile_flag, int option_index, char* opt
         printf(",messages received = %ld ",r_usage.ru_msgrcv);
         printf(",signals received = %ld ",r_usage.ru_nsignals);
         printf(",voluntary context switches = %ld ",r_usage.ru_nvcsw);
-        printf(",involuntary = %ld\n",r_usage.ru_nivcsw);
+        printf(",involuntary = %ld ",r_usage.ru_nivcsw);
         fflush(stdout);
     }
     return r_usage.ru_utime; 
@@ -131,38 +128,8 @@ void profile_children (){
     return; 
 }
 
-void profile_total (){
-    getrusage(RUSAGE_SELF,&r_usage_total);
-    struct timeval unrounded = r_usage_total.ru_utime; 
-    long m_seconds = unrounded.tv_usec; 
-    printf("user time is currently: %ld ", m_seconds);
-    unrounded = r_usage_total.ru_utime; 
-    m_seconds = unrounded.tv_usec; 
-    printf("system time is currently: = %ld ",r_usage_total.ru_stime);
-    fflush(stdout);
 
-    struct rusage r_usage2;
-    getrusage(RUSAGE_CHILDREN,&r_usage2);
-    unrounded = r_usage2.ru_utime; 
-    m_seconds = unrounded.tv_usec; 
-    printf("children user time is currently: %ld ", m_seconds);
-    unrounded = r_usage2.ru_utime; 
-    m_seconds = unrounded.tv_usec; 
-    printf("children system time is currently: = %ld ",r_usage2.ru_stime);
-    fflush(stdout);
-
-    return; 
-}
-
-void profile_children (){
-    struct rusage r_usage;
-    if (profile_flag == true) {
-        getrusage(RUSAGE_SELF,&r_usage);
-        printf("user time used = %ld ",r_usage.ru_utime);
-        fflush(stdout);
-    }
-    return; 
-}int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
+int parse_command_option (int optind, char **argv, int argc, int curr_process_index) {
     int num_args = 0;
     int index_counter = optind;
     int arr_counter = 0;
@@ -253,6 +220,12 @@ void profile_children (){
     process_PID_array[process_pid_counter] = pid;
     process_pid_counter++;
 
+    struct timeval start_time; 
+    struct timeval end_time; 
+    struct timeval time_diff; 
+    if (profile_flag == true) {
+        start_time = check_profile_flag(profile_flag, 0, NULL, 's'); 
+    }
     if (pid < 0) {
         abort();
     }
@@ -279,6 +252,13 @@ void profile_children (){
     }
     else if (pid > 0) {
     }
+
+    if (profile_flag == true) {
+        end_time = check_profile_flag(profile_flag, 0, NULL, 'e');
+        timersub(&end_time, &start_time, &time_diff);
+        printf("time to execute this child process ONLY = %ld\n", time_diff);
+    }
+
     return num_args + 4; // 4 is for 3 fd and the cmd name
 }
 
@@ -363,7 +343,6 @@ void find_process(int exit_num, id_t wait_pid, char type) {
 }
 
 int main(int argc, char **argv) {
-    //profile_total(); 
     int ret, ret2;
     struct timeval start_time; 
     struct timeval end_time; 
@@ -671,7 +650,6 @@ int main(int argc, char **argv) {
     // read and write the files
 
     profile_children(); 
-    //profile_total(); 
     if (sig_max != -1){
         exit (sig_max + 128);
     }
