@@ -242,11 +242,11 @@ int main(int argc, char **argv) {
     //thread processing
     pthread_t add_thread [num_threads];
     for (i; i < num_threads; i++){
-        pthread_create(&add_thread[num_threads], NULL, pre_handler_processing, NULL);
+        pthread_create(&add_thread[i], NULL, pre_handler_processing, NULL);
     }
     
     for (i; i < num_threads; i++){
-        pthread_join(add_thread[num_threads], (void**)ret);
+        pthread_join(add_thread[i], (void**)ret);
     }
     
     if (mutex_flag == true){

@@ -19,7 +19,7 @@
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 	SortedList_t *head = list;
-	SortedListElement_t element_iterator = list->next; 
+	SortedListElement_t *element_iterator = list->next; 
 
 	if (opt_yield & INSERT_YIELD) {
 		sched_yield();
@@ -46,35 +46,33 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 }
 
 int SortedList_delete( SortedListElement_t *element) {
-	SortedList_t *head = list;
-	SortedListElement_t element_iterator = list->next; 
+	SortedListElement_t *temp = element; 
 
 	if (opt_yield & DELETE_YIELD) {
 		sched_yield();
 	}
-	while (element_iterator->key != NULL){
-		if (strcmp (element->key, element_iterator->key) == 0){
-			element_iterator->prev->next = element_iterator->next; 
-			element_iterator->next->prev = element_iterator->prev; 
-			free(element_iterator); 
+
+	// next->prev and prev->next both point to this node
+ 	if (temp->prev->next == element && temp->next->prev == element){
+ 			temp->prev->next = element->next; 
+			temp->next->prev = element->prev; 
+			free (element); 
 			return 0; 
-		}
-		element_iterator = element_iterator->next; 
-	}
-	return 1;
+ 	}
+ 	return 1; 
 }
 
 SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
 	SortedList_t *head = list;
-	SortedListElement_t element_iterator = list->next; 
+	SortedListElement_t *element_iterator = list->next; 
 
 	if (opt_yield & LOOKUP_YIELD) {
 		sched_yield();
 	}
 
 	while (element_iterator->key != NULL){
-		if (strcmp (element->key, key) == 0){
-			return element;
+		if (strcmp (element_iterator->key, key) == 0){
+			return element_iterator;
 		}
 		element_iterator = element_iterator->next; 
 	}
@@ -82,9 +80,9 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
 }
 
 int SortedList_length(SortedList_t *list){
-	counter = 1; 
+	int counter = 1; 
 	SortedList_t *head = list;
-	SortedListElement_t element_iterator = list->next; 
+	SortedListElement_t *element_iterator = list->next; 
 
 	if (opt_yield & LOOKUP_YIELD) {
 		sched_yield();
