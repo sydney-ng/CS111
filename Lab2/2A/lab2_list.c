@@ -26,13 +26,11 @@ struct timespec start_time;
 struct timespec end_time;
 pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER;
 volatile int s_lock = 0;
-pthread_t add_thread;
 int num_total;  
-char lockflag_type[5] = NULL; 
-char yieldopts[4] = NULL ; 
-
-mutex_flag = false; 
-spinlock_flag = false; 
+char lockflag_type[5]; 
+char yieldopts[4]; 
+bool mutex_flag = false; 
+bool spinlock_flag = false; 
 
 static struct option long_options[] = {
     {"threads", required_argument, 0, 'T' },
@@ -66,22 +64,37 @@ void printdata() {
 }
 void createList(){
 	num_total = num_threads * num_iterations; 
-	original_list = malloc(sizeof(SortedList_t));
-	original_list->key = NULL; 
+	int counter =0; 
+	original_list = malloc(num_total * sizeof(SortedListElement_t*));
+ 	int i; 
 	int char_len = 3; 
 	const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 	while (num_total !=0) {
 		//create & initialize the node
-		struct SortedListElement_t* new_node = (struct SortedListElement_t*) malloc(sizeof(struct SortedListElement_t));
+			/*struct SortedListElement_t* new_node = malloc(sizeof(SortedListElement_t));
 			new_node->prev = NULL;
 			new_node->next = NULL; 
-			for (int i = 0; i < 3; i++){
+			for (i = 0; i < 3; i++){
 				int key = rand() % (int) (sizeof alphabet - 1);
 				new_node->key[i] = alphabet[i];
 			}
-			str[3] = '\0';
+			new_node->key[3] = '\0';
 
+			original_list[counter] = new_node;*/
+
+			original_list[counter] = malloc(sizeof(SortedListElement_t));
+			original_list[counter]->prev = NULL;
+			original_list[counter]->next = NULL; 
+			char alphakey [4]; 
+			for (i = 0; i < 3; i++){
+				int alpha_num = rand() % (int) (sizeof alphabet - 1);
+				alphakey[i] = alphabet[alpha_num];
+			}
+			alphakey[3] = '\0';
+			original_list[counter]->key = alphakey; 
+			
+		counter ++; 
 		num_total--; 
 	}
 }
@@ -98,9 +111,10 @@ void *linked_l_handler(void *vargp) {
 	linked_l_len = SortedList_length(linked_l);
 
 	temp_thread_ID = threadID; 
-	SortedListElement_t found_element; 
-	SortedListElement_t find_me = linked_l->head; 
+	SortedListElement_t *found_element; 
+	SortedListElement_t *find_me;  
 	while (temp_thread_ID < num_total) {
+		find_me = original_list[temp_thread_ID]; 
 		found_element = SortedList_lookup (linked_l, find_me->key); 
 		if (found_element != NULL){
 			SortedList_delete (found_element); 
@@ -109,21 +123,23 @@ void *linked_l_handler(void *vargp) {
 	pthread_exit(NULL);
 }
 
-void set_flags(char* optarg){
-    char add_m [1]= 'm'; 
-    char add_s [1]= 's'; 
+void set_flags(char* optarg){ 
+	char m = 'm';
+	char s = 's'; 
+	char *m_pointer = &m; 
+	char *s_pointer = &s; 
 
-    if (strcmp(optarg, add_m) == 0){
+    if (strcmp(optarg, m_pointer) == 0){
         mutex_flag = true; 
         lockflag_type[0] = 'm'; 
-        lockflag_type[1] = NULL; 
+        lockflag_type[1] = '\0'; 
 
     }
 
-    else if (strcmp(optarg, add_s) == 0){
+    else if (strcmp(optarg, s_pointer) == 0){
         spinlock_flag = true; 
         lockflag_type[0] = 's';  
-   	    lockflag_type[1] = NULL; 
+   	    lockflag_type[1] = '\0'; 
   
     }
     else {
@@ -131,12 +147,13 @@ void set_flags(char* optarg){
     	lockflag_type[1] = 'o'; 
     	lockflag_type[2] = 'n'; 
     	lockflag_type[3] = 'e'; 
-    	lockflag_type[4] = NULL; 
+    	lockflag_type[4] = '\0'; 
     }
 } 
 
-int main () {
+int main (int argc, char **argv) {
 	int c; 
+    int i; 
 
 	while (1)
     {
@@ -197,13 +214,17 @@ int main () {
     createList(); 
     clock_gettime(CLOCK_MONOTONIC, &start_time); //monotonic isn't affected by discountinued jobs
 
-    add_thread = malloc((sizeof(pthread_t)*num_threads)); 
+	pthread_t *add_thread = malloc((sizeof(pthread_t)*num_threads)); 
+
+	int *arg = malloc(sizeof(*arg));
+
     for (i; i < num_threads; i++){
-        pthread_create(&add_thread[i], NULL, linked_l_handler, (void*) (i));
+    	*arg = i;
+        pthread_create(&add_thread[i], NULL, linked_l_handler, (void*) (arg));
     }
     
     for (i; i < num_threads; i++){
-        pthread_join(add_thread[num_threads], (void**)ret);
+        pthread_join(add_thread[i], (void**)NULL);
     }
 
     // checks the length of the list to confirm that it is zero
