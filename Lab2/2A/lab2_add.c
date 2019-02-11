@@ -24,7 +24,7 @@ long long *counter_p = &counter;
 struct timespec start_time;
 struct timespec end_time;
 char test_name[100] = "add-none";
-bool yield_flag = false; 
+static int yield_flag = 0; 
 bool mutex_flag = false; 
 pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER; 
 bool spinlock_flag = false; 
@@ -43,6 +43,7 @@ void add_computation ();
 static struct option long_options[] = {
     {"threads", required_argument, 0, 'T' },
     {"iterations", required_argument, 0, 'I' },
+    {"yield", no_argument, &yield_flag, -1 },
     {"sync", required_argument, 0, 'S' },
     {0, 0, 0, 0}};
 
@@ -58,7 +59,7 @@ struct add_args
 };
 
 void *pre_handler_processing(void *vargp) {
-    if ((yield_flag) == true ) {
+    if (yield_flag == -1 ) {
         sched_yield(); 
     } 
 
@@ -223,14 +224,12 @@ int main(int argc, char **argv) {
                 }
                 break;
             case 'S':
-                if (optarg) {
-                    printf ("optarg is: %s \n", optarg); 
-                }
+                printf ("optarg is: %s \n", optarg); 
                 set_flags(optarg); 
                 break;
             case '?':
-                    fprintf (stdout, "bogus args \n");
-                    fflush(stdout);
+                    fprintf (stderr, "bogus args \n");
+                    fflush(stderr);
                     exit (1); 
             default:
                 break;
