@@ -20,7 +20,7 @@
 int opt_yield = 0; 
 int num_threads = 1;
 int num_iterations = 1;
-SortedList_t **original_list;
+SortedListElement_t **original_list;
 SortedList_t *linked_l;
 struct timespec start_time;
 struct timespec end_time;
@@ -59,29 +59,28 @@ void printdata() {
 	int num_operations_performed = num_threads * num_iterations * 3;
 	long total_run_time = ((long)end_time.tv_sec - (long)start_time.tv_sec)*1000000000 + ((long)end_time.tv_nsec - (long)start_time.tv_nsec);  
 	long average_time_per_operation = total_run_time/num_operations_performed; 
-	printf ("%s, %s, %d, %d, 1, %d, %ld, %ld \n", yieldopts, lockflag_type, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
+	
+
+	FILE * fp = fopen ("lab2_add.csv" , "w+ ");
+	fprintf (fp, "%s, %s, %d, %d, 1, %d, %ld, %ld \n", yieldopts, lockflag_type, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
 
 }
 void createList(){
-	num_total = num_threads * num_iterations; 
+    num_total = num_threads * num_iterations;
+	linked_l = malloc(sizeof(SortedList_t));
+	linked_l->next = linked_l;
+	linked_l->prev = linked_l;
+	linked_l->key = NULL;	
+	printf ("createList num_total is: %d\n", num_total); 
+
 	int counter =0; 
 	original_list = malloc(num_total * sizeof(SortedListElement_t*));
  	int i; 
 	int char_len = 3; 
 	const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	int num_total_temp = num_total; 
 
-	while (num_total !=0) {
-		//create & initialize the node
-			/*struct SortedListElement_t* new_node = malloc(sizeof(SortedListElement_t));
-			new_node->prev = NULL;
-			new_node->next = NULL; 
-			for (i = 0; i < 3; i++){
-				int key = rand() % (int) (sizeof alphabet - 1);
-				new_node->key[i] = alphabet[i];
-			}
-			new_node->key[3] = '\0';
-
-			original_list[counter] = new_node;*/
+	while (num_total_temp !=0) {
 
 			original_list[counter] = malloc(sizeof(SortedListElement_t));
 			original_list[counter]->prev = NULL;
@@ -95,20 +94,23 @@ void createList(){
 			original_list[counter]->key = alphakey; 
 			
 		counter ++; 
-		num_total--; 
+		num_total_temp--; 
 	}
 }
 
 void *linked_l_handler(void *vargp) {
+
 	printf ("here in linked_l_handler \n"); 
-	int threadID = * (int *) vargp;
-	int temp_thread_ID = threadID; 
-	while (temp_thread_ID < num_total) {
+	int t_ID = *((int *) vargp); 
+	int temp_thread_ID = t_ID; 
+	printf ("threadID is: %d \n", t_ID); 
+	printf ("num_total is: %d\n", num_total); 
+
+	for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
 		SortedList_insert(linked_l, original_list[temp_thread_ID]);
-		temp_thread_ID = temp_thread_ID + threadID; 
-		printf ("inserted \n"); 
-		fflush (stdout);
 	}
+
+
 	// gets the list length
 	/*int linked_l_len; 
 	linked_l_len = SortedList_length(linked_l);
@@ -201,9 +203,6 @@ int main (int argc, char **argv) {
                 		pos_counter++; 
                 	}
                 }
-                else{
-                	fprintf (stderr, "no --yield option given \n"); 
-                }
 
                 break;
             case '?':
@@ -215,19 +214,22 @@ int main (int argc, char **argv) {
                 exit (1);
         }
     }
-    createList(); 
+    createList();
     clock_gettime(CLOCK_MONOTONIC, &start_time); //monotonic isn't affected by discountinued jobs
 
 	pthread_t *add_thread = malloc((sizeof(pthread_t)*num_threads)); 
 
 	int *arg = malloc(sizeof(*arg));
 
-    for (i; i < num_threads; i++){
+
+    for (i=0; i < num_threads; i++){
     	*arg = i;
+  		printf ("before, num_total is: %d\n", num_total); 
+
         pthread_create(&add_thread[i], NULL, linked_l_handler, (void*) (arg));
     }
     
-    for (i; i < num_threads; i++){
+    for (i =0; i < num_threads; i++){
         pthread_join(add_thread[i], (void**)NULL);
     }
 
