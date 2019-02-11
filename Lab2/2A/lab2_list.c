@@ -100,14 +100,17 @@ void createList(){
 }
 
 void *linked_l_handler(void *vargp) {
+	printf ("here in linked_l_handler \n"); 
 	int threadID = * (int *) vargp;
 	int temp_thread_ID = threadID; 
 	while (temp_thread_ID < num_total) {
 		SortedList_insert(linked_l, original_list[temp_thread_ID]);
-		threadID = threadID + threadID; 
+		temp_thread_ID = temp_thread_ID + threadID; 
+		printf ("inserted \n"); 
+		fflush (stdout);
 	}
 	// gets the list length
-	int linked_l_len; 
+	/*int linked_l_len; 
 	linked_l_len = SortedList_length(linked_l);
 
 	temp_thread_ID = threadID; 
@@ -120,7 +123,7 @@ void *linked_l_handler(void *vargp) {
 			SortedList_delete (found_element); 
 		}
 	} 
-	pthread_exit(NULL);
+	pthread_exit(NULL); */
 }
 
 void set_flags(char* optarg){ 
@@ -204,11 +207,12 @@ int main (int argc, char **argv) {
 
                 break;
             case '?':
-                    fprintf (stderr, "bogus args \n");
-                    fflush(stderr);
-                    exit (1); 
+                fprintf (stderr, "bogus args \n");
+                fflush(stderr);
+                exit (1); 
+                break; 
             default:
-                break;
+                exit (1);
         }
     }
     createList(); 
@@ -230,9 +234,9 @@ int main (int argc, char **argv) {
     // checks the length of the list to confirm that it is zero
     clock_gettime(CLOCK_MONOTONIC, &end_time);
 
-    if (SortedList_length(linked_l) != 0) {
+    /*if (SortedList_length(linked_l) != 0) {
     	fprintf(stderr, "Length of List After Computation is not 0"); 
-    }
+    }*/
 
     printdata(); 
     
