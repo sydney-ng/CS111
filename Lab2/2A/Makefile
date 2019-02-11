@@ -1,12 +1,13 @@
 CC =gcc
 CCFLAGS= -Wall -Wextra
 
-Lab2: lab2.o
-	$(CC) -o lab2 lab2.o
-lab2.o: lab2.c
-	$(CC) -c lab2.c
+default:
+	$(CC) -pthread -o lab2_add lab2_add.c
+	$(CC) -pthread -o lab2_list lab2_list.c
 check: 
-clean: 
-	rm simpsh lab2.o lab2 lab2-804794021.tar.gz
-dist: 
-	tar -czvf lab2-804794021.tar.gz README lab12.c Makefile 
+graphs:
+
+clean:
+	rm simpsh lab2_add.o lab2_add lab2a-804794021.tar.gz
+dist:
+	tar -czvf lab2a-804794021.tar.gz README lab2_add.c Makefile SortedList.h SortedList.c lab2_list.c lab2_add.csv lab2_list.csv lab2_add-1.png lab2_add-2.png lab2_add-3.png lab2_add-4.png lab2_add-5.png lab2_list-1.png lab2_list-2.png lab2_list-3.png lab2_list-4.png 

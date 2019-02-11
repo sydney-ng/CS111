@@ -1,6 +1,7 @@
 NAME: Sydney Ng
 EMAIL: sydney.ng@yahoo.com
 ID: 804794021
+SLIPDAYS: 1
 
 Similar to Lab 0, this project will use file descriptors that will either only open/ only write to, execute a command to a specific file descriptor, and possibly print out the commands you’re executing (if the user asks for it). You also can combine these together. Error messages will be printed to the error file descriptor if errors are encountered. In part 1B, we can support all the commands except for --profile. We support more opening/closing options & are able to retrieve the arguments of a command using --wait. In Part 1C, we are adding the ability to use the —-profile option so that you may track the amount of time that it takes to execute a command or it’s children processes. You also will have the ability to see the amount of time that is being spent in the user process. 
 
