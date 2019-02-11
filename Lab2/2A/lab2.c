@@ -72,7 +72,7 @@ void *pre_handler_processing(void *vargp) {
     }
 
     else if (compare_and_swap_flag == true) {
-        set_compare_and_swap_lock();
+        //set_compare_and_swap_lock();
     }
 
     else {    // normal compare 
@@ -110,7 +110,7 @@ void set_spinlock_lock(){
     __sync_lock_release(&s_lock);
 }
 
-void set_compare_and_swap_lock(){
+/*void set_compare_and_swap_lock(){
     long long original; 
     long long *original_p = &original;
     long long new; 
@@ -128,7 +128,7 @@ void set_compare_and_swap_lock(){
         printf ("did the subtracting \n");
      }
      new = &original_p; 
-} 
+} */
 
 void print_data(){
     time_t curr_time_sec_end = end_time.tv_sec;
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
     printf ("value of counter is now: %ld \n", counter);
     clock_gettime(CLOCK_MONOTONIC, &end_time);
 
-    void print_data ();
+    print_data ();
 }
 
 // /usr/local/cs/bin/gnuplot
