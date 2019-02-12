@@ -31,7 +31,7 @@ char lockflag_type[5];
 char yieldopts[4]; 
 bool mutex_flag = false; 
 bool spinlock_flag = false; 
-
+char print_field_flag[100]; 
 static struct option long_options[] = {
     {"threads", required_argument, 0, 'T' },
     {"iterations", required_argument, 0, 'I' },
@@ -40,11 +40,25 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
+SortedList_t *m_list; 
+SortedListElement_t **m_empty_list;
+
 void *linked_l_handler(void *vargp);
 void createList(); 
-void printdata(); 
+void printdata();
+char* makeString(); 
+void format_flags(); 
 
-
+void format_flags(){
+	strcpy (print_field_flag, "list-");
+	strcat(print_field_flag, yieldopts);
+	if (mutex_flag == true){
+		strcat(print_field_flag, "-m");
+	}
+	else if (spinlock_flag == true){
+		strcat(print_field_flag, "-s");
+	}
+}
 /* printing: the name of the test, which is of the form: list-yieldopts-syncopts: where
 yieldopts = {none, i,d,l,id,il,dl,idl}
 syncopts = {none,s,m}
@@ -55,14 +69,17 @@ the total number of operations performed: threads x iterations x 3 (insert + loo
 the total run time (in nanoseconds) for all threads
 the average time per operation (in nanoseconds).*/ 
 
+
 void printdata() {
+	format_flags(); 
 	int num_operations_performed = num_threads * num_iterations * 3;
 	long total_run_time = ((long)end_time.tv_sec - (long)start_time.tv_sec)*1000000000 + ((long)end_time.tv_nsec - (long)start_time.tv_nsec);  
 	long average_time_per_operation = total_run_time/num_operations_performed; 
 	
 
-	FILE * fp = fopen ("lab2_add.csv" , "w+ ");
-	fprintf (fp, "%s, %s, %d, %d, 1, %d, %ld, %ld \n", yieldopts, lockflag_type, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
+	FILE * fp = fopen ("lab2_list.csv" , "w+ ");
+	fprintf (fp, "%s,%s,%d,%d,1,%d,%ld,%ld \n", yieldopts, lockflag_type, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
+	printf ("%s,%d,%d,1,%d,%ld,%ld\n", print_field_flag, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
 
 }
 void createList(){
@@ -71,77 +88,82 @@ void createList(){
 	linked_l->next = linked_l;
 	linked_l->prev = linked_l;
 	linked_l->key = NULL;	
-	printf ("createList num_total is: %d\n", num_total); 
+	
+	//printf ("createList num_total is: %d\n", num_total); 
 
 	int counter =0; 
 	original_list = malloc(num_total * sizeof(SortedListElement_t*));
- 	int i; 
-	int char_len = 3; 
-	const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	int num_total_temp = num_total; 
+	
+	for (counter; counter < num_total; counter++){
+		original_list[counter] = malloc(sizeof(SortedListElement_t));
+		original_list[counter]->prev = NULL;
+		original_list[counter]->next = NULL; 
+		original_list[counter]->key = makeString(); 
+		//printf ("created : %p\n", (void*)original_list[counter]);
 
-	while (num_total_temp !=0) {
-
-			original_list[counter] = malloc(sizeof(SortedListElement_t));
-			original_list[counter]->prev = NULL;
-			original_list[counter]->next = NULL; 
-			char alphakey [4]; 
-			for (i = 0; i < 3; i++){
-				int alpha_num = rand() % (int) (sizeof alphabet - 1);
-				alphakey[i] = alphabet[alpha_num];
-			}
-			alphakey[3] = '\0';
-			original_list[counter]->key = alphakey; 
-			
-		counter ++; 
-		num_total_temp--; 
 	}
+	//printf("finished\n");
 }
 
+char* makeString(){
+ 	int i; 
+	char alphakey[5];
+	const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	for (i = 0; i < 4; i++){
+			int alpha_num = rand() % (sizeof (alphabet) - 1);
+			alphakey[i] = alphabet[alpha_num];
+		}
+		alphakey[4] = '\0';
+	return alphakey; 
+}
 void *linked_l_handler(void *vargp) {
 
-	printf ("here in linked_l_handler \n"); 
+	//printf ("here in linked_l_handler \n"); 
 	int t_ID = *((int *) vargp); 
 	int temp_thread_ID = t_ID; 
-	printf ("threadID is: %d \n", t_ID); 
-	printf ("num_total is: %d\n", num_total); 
+	//printf ("threadID is: %d \n", t_ID); 
+	//printf ("num_total is: %d\n", num_total); 
 
 	for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
+		//printf ("temp_thread_ID is: %d \n", temp_thread_ID); 
+		//printf ("the one we are inserting is: %p\n", (void*)original_list[temp_thread_ID]);
 		SortedList_insert(linked_l, original_list[temp_thread_ID]);
 	}
 
 
-	// gets the list length
-	/*int linked_l_len; 
+	//gets the list length
+	int linked_l_len; 
 	linked_l_len = SortedList_length(linked_l);
+	//printf ("list len is: %d\n", linked_l_len); 
 
-	temp_thread_ID = threadID; 
+	int del_res; 
+	temp_thread_ID = t_ID; 
 	SortedListElement_t *found_element; 
 	SortedListElement_t *find_me;  
 	while (temp_thread_ID < num_total) {
 		find_me = original_list[temp_thread_ID]; 
 		found_element = SortedList_lookup (linked_l, find_me->key); 
+		//printf ("found element\n"); 
 		if (found_element != NULL){
-			SortedList_delete (found_element); 
+			del_res = SortedList_delete (found_element); 
+			if (del_res == 1){
+				printf ("could not delete the node\n");
+			}
 		}
+		temp_thread_ID++; 
 	} 
-	pthread_exit(NULL); */
+	pthread_exit(NULL); 
 }
 
 void set_flags(char* optarg){ 
-	char m = 'm';
-	char s = 's'; 
-	char *m_pointer = &m; 
-	char *s_pointer = &s; 
 
-    if (strcmp(optarg, m_pointer) == 0){
+	if(strcmp("m", optarg)== 0){	
         mutex_flag = true; 
         lockflag_type[0] = 'm'; 
         lockflag_type[1] = '\0'; 
-
     }
 
-    else if (strcmp(optarg, s_pointer) == 0){
+	if(strcmp("s", optarg)== 0){	
         spinlock_flag = true; 
         lockflag_type[0] = 's';  
    	    lockflag_type[1] = '\0'; 
@@ -175,7 +197,7 @@ int main (int argc, char **argv) {
                 }
                 break;
             case 'S':
-                set_flags(optarg); 
+				set_flags(optarg);
                 break;
             case 'I':
                 if (optarg) {
@@ -214,17 +236,19 @@ int main (int argc, char **argv) {
                 exit (1);
         }
     }
+  
     createList();
-    clock_gettime(CLOCK_MONOTONIC, &start_time); //monotonic isn't affected by discountinued jobs
-
+    clock_gettime(CLOCK_MONOTONIC, &start_time); 
+    int c1 =0; 
+	/*for (c1; c1 < num_total; c1++){
+		printf ("checking creation of : %p\n", (void*)original_list[c1]);
+	}*/
 	pthread_t *add_thread = malloc((sizeof(pthread_t)*num_threads)); 
-
-	int *arg = malloc(sizeof(*arg));
-
-
+    int *arg = malloc(sizeof(*arg));
+	//printf ("got here \n"); 
     for (i=0; i < num_threads; i++){
     	*arg = i;
-  		printf ("before, num_total is: %d\n", num_total); 
+  		//printf ("before, num_total is: %d\n", num_total); 
 
         pthread_create(&add_thread[i], NULL, linked_l_handler, (void*) (arg));
     }
@@ -233,12 +257,11 @@ int main (int argc, char **argv) {
         pthread_join(add_thread[i], (void**)NULL);
     }
 
-    // checks the length of the list to confirm that it is zero
     clock_gettime(CLOCK_MONOTONIC, &end_time);
 
-    /*if (SortedList_length(linked_l) != 0) {
+    if (SortedList_length(linked_l) != 0) {
     	fprintf(stderr, "Length of List After Computation is not 0"); 
-    }*/
+    }
 
     printdata(); 
     
