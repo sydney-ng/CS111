@@ -131,6 +131,9 @@ the average time per operation (in nanoseconds).
 the total at the end of the run (0 if there were no conflicting updates)*/
 
 void print_data(){
+    if (strlen(test_name) == 0){
+        strcpy(test_name, "add-none");
+    }
     time_t curr_time_sec_end = end_time.tv_sec;
     long curr_time_ms_end = end_time.tv_nsec;
     time_t curr_time_sec = start_time.tv_sec;
