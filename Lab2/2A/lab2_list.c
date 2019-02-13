@@ -41,13 +41,18 @@ static struct option long_options[] = {
 };
 
 SortedList_t *m_list; 
+int linked_l_len; 
 SortedListElement_t **m_empty_list;
 
 void *linked_l_handler(void *vargp);
 void createList(); 
 void printdata();
 void format_flags();
-void do_computation();  
+void do_computation_insert(int t_ID);  
+void  do_computation_lookup_to_delete(int t_ID);
+void do_computation_delete(SortedListElement_t *found_element);  
+void  do_computation_len(int t_ID);
+
 
 void format_flags(){
     strcpy (print_field_flag, "list-");
@@ -58,7 +63,6 @@ void format_flags(){
     else {
         strcat (print_field_flag, yieldopts);
     }
-	
 
 	if (mutex_flag == true){
 		strcat(print_field_flag, "-m");
@@ -84,12 +88,12 @@ the average time per operation (in nanoseconds).*/
 void printdata() {
 	format_flags(); 
 
-    time_t curr_time_sec_end = end_time.tv_sec;
-    long curr_time_ms_end = end_time.tv_nsec;
-    time_t curr_time_sec = start_time.tv_sec;
-    long curr_time_ms = start_time.tv_nsec;
+    long curr_time_sec_end = (long) end_time.tv_sec;
+    long curr_time_ms_end = end_time.tv_nsec/1000000000;
+    long curr_time_sec =(long)start_time.tv_sec;
+    long curr_time_ms = start_time.tv_nsec/1000000000;
 
-    long total_ns = curr_time_ms_end - curr_time_ms;
+    long total_ns = (curr_time_sec_end +  curr_time_ms_end) - (curr_time_ms + curr_time_ms);
 
 	int num_operations_performed = num_threads * num_iterations * 3;
 	long average_time_per_operation = total_ns/num_operations_performed; 
@@ -133,7 +137,15 @@ void set_spinlock_lock(int t_ID){
     int spinlock_ret_val; 
     //printf ("spinlock case \n"); 
     while (__sync_lock_test_and_set(&s_lock, 1));
-        do_computation(); 
+        do_computation_insert(t_ID); 
+    __sync_lock_release(&s_lock);
+
+    while (__sync_lock_test_and_set(&s_lock, 1));
+         do_computation_len(t_ID); 
+    __sync_lock_release(&s_lock);
+
+    while (__sync_lock_test_and_set(&s_lock, 1));
+         do_computation_lookup_to_delete(t_ID); 
     __sync_lock_release(&s_lock);
 }
 
@@ -143,13 +155,31 @@ void set_mutex_lock(int t_ID){
 
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
-        printf ("could not set mutex lock \n", mutex_ret_val); 
+        printf ("could not set mutex lock \n"); 
     }
-    do_computation(); 
+    do_computation_insert(t_ID); 
+    
+    pthread_mutex_unlock(&m_lock);  
+
+    ///////////////////////////////////////////
+    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    if (mutex_ret_val == -1) {
+        printf ("could not set mutex lock \n"); 
+    }
+    do_computation_len(t_ID); 
+    
+    pthread_mutex_unlock(&m_lock);  
+
+    ///////////////////////////////////////////
+    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    if (mutex_ret_val == -1) {
+        printf ("could not set mutex lock \n"); 
+    }
+     do_computation_lookup_to_delete(t_ID); 
     pthread_mutex_unlock(&m_lock);  
 }
 
-void do_computation(int t_ID) {
+void do_computation_insert(int t_ID) {
     //printf ("here in linked_l_handler \n"); 
     //printf ("t_ID is: %d and num total is: %d \n", t_ID, num_total); 
     int temp_thread_ID = t_ID; 
@@ -163,15 +193,42 @@ void do_computation(int t_ID) {
         SortedList_insert(linked_l, original_list[temp_thread_ID]);
         //printf ("done inserting!\n");
     }
+}
 
-    //printf ("after inserting \n");
+void do_computation_delete(SortedListElement_t *found_element) {
+    if (mutex_flag == true){
+        pthread_mutex_lock(&m_lock);
+    }
+    else if (spinlock_flag == true){
+        while (__sync_lock_test_and_set(&s_lock, 1));
+    }
+            
+    /////////////////////////////////////////////
+    int del_res; 
+    del_res = SortedList_delete (found_element); 
+    if (del_res == 1){
+        printf ("could not delete the node\n");
+    }
+    /////////////////////////////////////////////
+    if (mutex_flag == true){
+                pthread_mutex_unlock(&m_lock);  
+
+    }
+    else if (spinlock_flag == true){
+        __sync_lock_release(&s_lock);
+    }
+}
+
+void  do_computation_len (int t_ID) {
+     //printf ("after inserting \n");
     //gets the list length
-    int linked_l_len; 
     linked_l_len = SortedList_length(linked_l);
     //printf ("list len is: %d\n", linked_l_len); 
+}
+void  do_computation_lookup_to_delete (int t_ID) {
+   
 
-    int del_res; 
-    temp_thread_ID = t_ID; 
+    int temp_thread_ID = t_ID; 
     SortedListElement_t *found_element; 
     SortedListElement_t *find_me;  
     while (temp_thread_ID < num_total) {
@@ -179,16 +236,12 @@ void do_computation(int t_ID) {
         found_element = SortedList_lookup (linked_l, find_me->key); 
         //printf ("found element\n"); 
         if (found_element != NULL){
-            del_res = SortedList_delete (found_element); 
-            if (del_res == 1){
-                //printf ("could not delete the node\n");
-            }
+            do_computation_delete (found_element); 
         }
         temp_thread_ID++; 
     } 
     //printf ("exiting thread \n");
-    pthread_exit(NULL); 
-
+ return; 
 }
 
 void *linked_l_handler(void *vargp) {
@@ -202,8 +255,10 @@ void *linked_l_handler(void *vargp) {
     }
 
     else {
-        do_computation(t_ID); 
+        do_computation_insert(t_ID); 
+         do_computation_lookup_to_delete(t_ID); 
     }
+    pthread_exit(NULL); 
 	
 }
 
