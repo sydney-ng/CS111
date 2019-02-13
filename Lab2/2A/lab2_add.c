@@ -131,7 +131,12 @@ the total at the end of the run (0 if there were no conflicting updates)*/
 
 void print_data(){
     if (strlen(test_name) == 0){
-        strcpy(test_name, "add-none");
+        if (yield_flag == true){
+            strcpy(test_name, "add-yield-none");
+        }
+        else {
+            strcpy(test_name, "add-none");
+        }
     }
     time_t curr_time_sec_end = end_time.tv_sec;
     long curr_time_ms_end = end_time.tv_nsec;
@@ -167,25 +172,29 @@ void set_flags(char* optarg){
             yield_flag = false; 
             mutex_flag = true; 
             strcpy (test_name, add_m); 
+            return;
         }
 
         if (strcmp(optarg, letter_s) == 0){
             yield_flag = false; 
             spinlock_flag = true;
             strcpy (test_name, add_s); 
+            return;
         }
 
         if (strcmp(optarg, letter_c) == 0){
             yield_flag = false; 
             compare_and_swap_flag = true;
             strcpy (test_name, add_c); 
+            return;
         }
         else {
             yield_flag = false; 
             mutex_flag = false; 
             spinlock_flag = false; 
             compare_and_swap_flag = false; 
-             strcpy (test_name, add_none);   
+             strcpy (test_name, add_none); 
+             return;   
         }
     }
 
@@ -194,18 +203,21 @@ void set_flags(char* optarg){
             yield_flag = true; 
             mutex_flag = true;        
             strcpy (test_name, add_yield_m); 
+            return; 
         }
 
         else if (strcmp(optarg, letter_s) == 0){
             yield_flag = true; 
             spinlock_flag = true;        
-            strcpy (test_name, add_yield_s);        
+            strcpy (test_name, add_yield_s); 
+            return;       
         }
 
         else if (strcmp(optarg, letter_c) == 0){
             yield_flag = true; 
             compare_and_swap_flag = true; 
-            strcpy (test_name, add_yield_c);       
+            strcpy (test_name, add_yield_c);  
+            return;      
         }
         else {
             yield_flag = true; 

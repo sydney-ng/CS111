@@ -50,14 +50,25 @@ void format_flags();
 void do_computation();  
 
 void format_flags(){
-	strcpy (print_field_flag, "list-");
-	strcat(print_field_flag, yieldopts);
+    strcpy (print_field_flag, "list-");
+
+    if (strlen(yieldopts) ==0){
+        strcat (print_field_flag, "none");
+    }
+    else {
+        strcat (print_field_flag, yieldopts);
+    }
+	
+
 	if (mutex_flag == true){
 		strcat(print_field_flag, "-m");
 	}
 	else if (spinlock_flag == true){
 		strcat(print_field_flag, "-s");
 	}
+    else {
+        strcat(print_field_flag, "-none");
+    }
 }
 /* printing: the name of the test, which is of the form: list-yieldopts-syncopts: where
 yieldopts = {none, i,d,l,id,il,dl,idl}
@@ -72,14 +83,18 @@ the average time per operation (in nanoseconds).*/
 
 void printdata() {
 	format_flags(); 
-	int num_operations_performed = num_threads * num_iterations * 3;
-	long total_run_time = ((long)end_time.tv_sec - (long)start_time.tv_sec)*1000000000 + ((long)end_time.tv_nsec - (long)start_time.tv_nsec);  
-	long average_time_per_operation = total_run_time/num_operations_performed; 
-	
 
-	FILE * fp = fopen ("lab2_list.csv" , "w+ ");
-	fprintf (fp, "%s,%s,%d,%d,1,%d,%ld,%ld \n", yieldopts, lockflag_type, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
-	printf ("%s,%d,%d,1,%d,%ld,%ld\n", print_field_flag, num_threads, num_iterations, num_operations_performed, total_run_time, average_time_per_operation); 
+    time_t curr_time_sec_end = end_time.tv_sec;
+    long curr_time_ms_end = end_time.tv_nsec;
+    time_t curr_time_sec = start_time.tv_sec;
+    long curr_time_ms = start_time.tv_nsec;
+
+    long total_ns = curr_time_ms_end - curr_time_ms;
+
+	int num_operations_performed = num_threads * num_iterations * 3;
+	long average_time_per_operation = total_ns/num_operations_performed; 
+	
+    printf ("%s,%d,%d,1,%d,%ld,%ld\n", print_field_flag, num_threads, num_iterations, num_operations_performed, total_ns, average_time_per_operation); 
 
 }
 void createList(){
@@ -116,6 +131,7 @@ void createList(){
 
 void set_spinlock_lock(int t_ID){
     int spinlock_ret_val; 
+    //printf ("spinlock case \n"); 
     while (__sync_lock_test_and_set(&s_lock, 1));
         do_computation(); 
     __sync_lock_release(&s_lock);
@@ -123,6 +139,8 @@ void set_spinlock_lock(int t_ID){
 
 void set_mutex_lock(int t_ID){
     int mutex_ret_val; 
+    //printf ("mutexlock case \n"); 
+
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n", mutex_ret_val); 
@@ -133,17 +151,20 @@ void set_mutex_lock(int t_ID){
 
 void do_computation(int t_ID) {
     //printf ("here in linked_l_handler \n"); 
+    //printf ("t_ID is: %d and num total is: %d \n", t_ID, num_total); 
     int temp_thread_ID = t_ID; 
     //printf ("threadID is: %d \n", t_ID); 
     //printf ("num_total is: %d\n", num_total); 
 
     for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
+        //printf ("inside iterating loop\n"); 
         //printf ("temp_thread_ID is: %d \n", temp_thread_ID); 
         //printf ("the one we are inserting is: %p\n", (void*)original_list[temp_thread_ID]);
         SortedList_insert(linked_l, original_list[temp_thread_ID]);
+        //printf ("done inserting!\n");
     }
 
-
+    //printf ("after inserting \n");
     //gets the list length
     int linked_l_len; 
     linked_l_len = SortedList_length(linked_l);
@@ -160,11 +181,12 @@ void do_computation(int t_ID) {
         if (found_element != NULL){
             del_res = SortedList_delete (found_element); 
             if (del_res == 1){
-                printf ("could not delete the node\n");
+                //printf ("could not delete the node\n");
             }
         }
         temp_thread_ID++; 
     } 
+    //printf ("exiting thread \n");
     pthread_exit(NULL); 
 
 }
