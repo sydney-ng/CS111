@@ -100,7 +100,8 @@ void set_mutex_lock(){
     int mutex_ret_val; 
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
-        printf ("could not set mutex lock \n", mutex_ret_val); 
+        printf ("could not set mutex lock \n", mutex_ret_val);
+        exit (1);  
     }
     add_computation(); 
     pthread_mutex_unlock(&m_lock);  
@@ -273,9 +274,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (mutex_flag == true) {
-        pthread_mutex_init(&m_lock, NULL); 
-    }
     //thread processing
     pthread_t add_thread [num_threads];
     for (i; i < num_threads; i++){
@@ -285,14 +283,13 @@ int main(int argc, char **argv) {
     for (i; i < num_threads; i++){
         pthread_join(add_thread[i], (void**)ret);
     }
-    
-    if (mutex_flag == true){
-        pthread_mutex_destroy(&m_lock); 
-    }
+
     clock_gettime(CLOCK_MONOTONIC, &end_time);
 
     print_data ();
+    
+    if (counter != 0){
+        exit (2); 
+    }
     exit (0); 
 }
-
-// /usr/local/cs/bin/gnuplot
