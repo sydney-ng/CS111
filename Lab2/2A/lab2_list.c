@@ -46,8 +46,8 @@ SortedListElement_t **m_empty_list;
 void *linked_l_handler(void *vargp);
 void createList(); 
 void printdata();
-char* makeString(); 
-void format_flags(); 
+void format_flags();
+void do_computation();  
 
 void format_flags(){
 	strcpy (print_field_flag, "list-");
@@ -87,7 +87,9 @@ void createList(){
 	linked_l = malloc(sizeof(SortedList_t));
 	linked_l->next = linked_l;
 	linked_l->prev = linked_l;
-	linked_l->key = NULL;	
+	linked_l->key = NULL;
+	int i; 
+
 	
 	//printf ("createList num_total is: %d\n", num_total); 
 
@@ -98,61 +100,89 @@ void createList(){
 		original_list[counter] = malloc(sizeof(SortedListElement_t));
 		original_list[counter]->prev = NULL;
 		original_list[counter]->next = NULL; 
-		original_list[counter]->key = makeString(); 
+		char alphakey[5];
+		const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		for (i = 0; i < 4; i++){
+				int alpha_num = rand() % (sizeof (alphabet) - 1);
+				alphakey[i] = alphabet[alpha_num];
+			}
+		alphakey[4] = '\0';
+		original_list[counter]->key = alphakey; 
 		//printf ("created : %p\n", (void*)original_list[counter]);
 
 	}
 	//printf("finished\n");
 }
 
-char* makeString(){
- 	int i; 
-	char alphakey[5];
-	const char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	for (i = 0; i < 4; i++){
-			int alpha_num = rand() % (sizeof (alphabet) - 1);
-			alphakey[i] = alphabet[alpha_num];
-		}
-		alphakey[4] = '\0';
-	return alphakey; 
+void set_spinlock_lock(int t_ID){
+    int spinlock_ret_val; 
+    while (__sync_lock_test_and_set(&s_lock, 1));
+        do_computation(); 
+    __sync_lock_release(&s_lock);
 }
+
+void set_mutex_lock(int t_ID){
+    int mutex_ret_val; 
+    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    if (mutex_ret_val == -1) {
+        printf ("could not set mutex lock \n", mutex_ret_val); 
+    }
+    do_computation(); 
+    pthread_mutex_unlock(&m_lock);  
+}
+
+void do_computation(int t_ID) {
+    //printf ("here in linked_l_handler \n"); 
+    int temp_thread_ID = t_ID; 
+    //printf ("threadID is: %d \n", t_ID); 
+    //printf ("num_total is: %d\n", num_total); 
+
+    for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
+        //printf ("temp_thread_ID is: %d \n", temp_thread_ID); 
+        //printf ("the one we are inserting is: %p\n", (void*)original_list[temp_thread_ID]);
+        SortedList_insert(linked_l, original_list[temp_thread_ID]);
+    }
+
+
+    //gets the list length
+    int linked_l_len; 
+    linked_l_len = SortedList_length(linked_l);
+    //printf ("list len is: %d\n", linked_l_len); 
+
+    int del_res; 
+    temp_thread_ID = t_ID; 
+    SortedListElement_t *found_element; 
+    SortedListElement_t *find_me;  
+    while (temp_thread_ID < num_total) {
+        find_me = original_list[temp_thread_ID]; 
+        found_element = SortedList_lookup (linked_l, find_me->key); 
+        //printf ("found element\n"); 
+        if (found_element != NULL){
+            del_res = SortedList_delete (found_element); 
+            if (del_res == 1){
+                printf ("could not delete the node\n");
+            }
+        }
+        temp_thread_ID++; 
+    } 
+    pthread_exit(NULL); 
+
+}
+
 void *linked_l_handler(void *vargp) {
+    int t_ID = *((int *) vargp); 
+    if (mutex_flag == true){
+        set_mutex_lock(t_ID);
+    }
 
-	//printf ("here in linked_l_handler \n"); 
-	int t_ID = *((int *) vargp); 
-	int temp_thread_ID = t_ID; 
-	//printf ("threadID is: %d \n", t_ID); 
-	//printf ("num_total is: %d\n", num_total); 
+    else if (spinlock_flag == true){
+        set_spinlock_lock(t_ID);
+    }
 
-	for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
-		//printf ("temp_thread_ID is: %d \n", temp_thread_ID); 
-		//printf ("the one we are inserting is: %p\n", (void*)original_list[temp_thread_ID]);
-		SortedList_insert(linked_l, original_list[temp_thread_ID]);
-	}
-
-
-	//gets the list length
-	int linked_l_len; 
-	linked_l_len = SortedList_length(linked_l);
-	//printf ("list len is: %d\n", linked_l_len); 
-
-	int del_res; 
-	temp_thread_ID = t_ID; 
-	SortedListElement_t *found_element; 
-	SortedListElement_t *find_me;  
-	while (temp_thread_ID < num_total) {
-		find_me = original_list[temp_thread_ID]; 
-		found_element = SortedList_lookup (linked_l, find_me->key); 
-		//printf ("found element\n"); 
-		if (found_element != NULL){
-			del_res = SortedList_delete (found_element); 
-			if (del_res == 1){
-				printf ("could not delete the node\n");
-			}
-		}
-		temp_thread_ID++; 
-	} 
-	pthread_exit(NULL); 
+    else {
+        do_computation(t_ID); 
+    }
+	
 }
 
 void set_flags(char* optarg){ 
@@ -264,5 +294,6 @@ int main (int argc, char **argv) {
     }
 
     printdata(); 
+    exit (0);
     
 }

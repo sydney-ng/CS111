@@ -114,11 +114,10 @@ void set_spinlock_lock(){
 }
 
 void set_compare_and_swap_lock(int num){
-    long long original; 
-    long long *new; 
+    long long original = *counter_p; 
+    long long new;  
     while (__sync_val_compare_and_swap(counter_p, original, new) != original) {
-        original = * counter_p; 
-        add(new,num); 
+        new = original + num;
     }
 }
 
