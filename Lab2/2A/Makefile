@@ -608,7 +608,7 @@ tests:
 	./lab2_list --threads=12 --iterations=1000 --sync=s >> lab2_list.csv
 	./lab2_list --threads=16 --iterations=1000 --sync=s >> lab2_list.csv
 	./lab2_list --threads=24 --iterations=1000 --sync=s >> lab2_list.csv
-	./lab2_list --threads=1 --iterations=1000 >> lab2_list.csv
+	./lab2_list --threads=1 --iterations=1000     >> lab2_list.csv
 
 graphs:
 	chmod +x lab2_add.gp
