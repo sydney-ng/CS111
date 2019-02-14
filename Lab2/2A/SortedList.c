@@ -34,67 +34,45 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 		return; 
 	}
 	// if the head is the only thing there 
-	else if (head->next == head) 
+	/*else if (head->next == head) 
     { 
         head->next = element; 
 		head->prev = element; 
 		element->prev = head; 
 		element->next = head; 
-		//printf ("head only condition \n"); 
+		printf ("head only condition \n"); 
         return; 
-    }   
+    }   */
 
 	while (element_iterator != head){
 		// find the first thing you're bigger than
 		//printf ("comparing %s and %s", element->key, element_iterator->key); 
-		if (strcmp (element->key, element_iterator->key) >= 0 ) {
-			//printf ("inside string cmp if statement \n"); 
-			element->prev = element_iterator;
-			element->next = element_iterator->next; 
-			element_iterator->next = element; 
-			element_iterator->next->prev = element; 
-			//printf ("inserted %s \n", element_iterator->key); 
-			return; 
+		if (strcmp (element_iterator->key, element->key) >= 0 ) {
+		element->prev = element_iterator->prev;
+			element->next = element_iterator; 
+			element_iterator->next = element; 	
+			element_iterator->next->prev = element; 	
+			//printf ("inserted %s \n", element_iterator->key);	
+		break;
 		} 
 		element_iterator = element_iterator->next; 
 	}
-
-	/* if (head->next == NULL) 
-    { 
-        head->next = element; 
-		head->prev = element; 
-		element->prev = head; 
-		element->next = head; 
-        return; 
-    }   
-	while (element_iterator != head){
-		// find the first thing you're bigger than
-		if (strcmp (element->key, element_iterator->key) >= 0 ) {
-			break;   
-		} 
-		element_iterator = element_iterator->next; 
-	}
-	element->prev = element_iterator->prev;
-	element->next = element_iterator; 
-	element_iterator->next = element; 
-	element_iterator->next->prev = element; 
-	printf ("inserted one! \n"); */
 
 	return; 
 }
 
 int SortedList_delete( SortedListElement_t *element) {
 
-	if (opt_yield & DELETE_YIELD) {
-		sched_yield();
-	}
-
-	// next->prev and prev->next both point to this node
  	if (element->prev->next != element && element->next->prev != element){	
  		return 1;
  	}
- 	element->prev->next = element->next; 
+
+ 	if (opt_yield & DELETE_YIELD) {
+		sched_yield();
+	}
+	
 	element->next->prev = element->prev; 
+ 	element->prev->next = element->next; 
 	free (element); 
 	return 0;  
 }
@@ -117,36 +95,21 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
 }
 
 int SortedList_length(SortedList_t *list){
-	/*int counter = 1; 
-	SortedListElement_t *head = list;
-	SortedListElement_t *element_iterator = head->next; 
-	
-	if (opt_yield & LOOKUP_YIELD) {
-		sched_yield();
-	}
-	
-	printf ("made it before in here\n"); 
-
-	printf ("element_iterator is: %s, head is: %s", element_iterator->key, head->key); 
-	while (element_iterator != head){
-		printf ("made it in here\n"); 
-		++counter; 
-		element_iterator = element_iterator->next; 
-	}
-	return counter;*/
+	//printf ("made it to the beginning of the length fx\n"); 
 
 	int counter = 0;
-	SortedListElement_t *element_iterator = list->next;  // start at the first real element
+	SortedListElement_t *element_iterator = list->next;
 
-	// give up the CPU to another thread before critical section
 	if (opt_yield & LOOKUP_YIELD) {
 		sched_yield();
 	}
 
 	while (element_iterator != list) {
+		//printf ("we are here in the whil lloop\n");
 		counter++;
 		element_iterator = element_iterator->next;
 	}
+	//printf ("finished counting length \n"); 
 	return counter;
 
 }
