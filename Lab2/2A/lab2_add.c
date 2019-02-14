@@ -24,20 +24,20 @@ long long *counter_p = &counter;
 struct timespec start_time;
 struct timespec end_time;
 char test_name[50];
-bool yield_flag = false; 
-bool mutex_flag = false; 
-pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER; 
-bool spinlock_flag = false; 
+bool yield_flag = false;
+bool mutex_flag = false;
+pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER;
+bool spinlock_flag = false;
 volatile int s_lock = 0;
-bool compare_and_swap_flag = false; 
+bool compare_and_swap_flag = false;
 
 void print_data ();
-void set_flags(char* optarg); 
-void *pre_handler_processing(void *vargp); 
-void set_spinlock_lock(); 
+void set_flags(char* optarg);
+void *pre_handler_processing(void *vargp);
+void set_spinlock_lock();
 void set_mutex_lock();
 void set_compare_and_swap_lock(int num);
-void add_computation (); 
+void add_computation ();
 
 
 static struct option long_options[] = {
@@ -60,28 +60,28 @@ struct add_args
 
 void *pre_handler_processing(void *vargp) {
     if (yield_flag == true) {
-        sched_yield(); 
-    } 
-
+        sched_yield();
+    }
+    
     //now check for mutex/spinlock/compare&swap
     if (mutex_flag == true) {
-        set_mutex_lock(); 
+        set_mutex_lock();
     }
-
+    
     else if (spinlock_flag == true) {
-        set_spinlock_lock(); 
+        set_spinlock_lock();
     }
-
+    
     else if (compare_and_swap_flag == true) {
-        int i = 0; 
+        int i = 0;
         for (i; i < num_iterations; i++)
             set_compare_and_swap_lock(1);
         for (i =0; i < num_iterations; i++)
             set_compare_and_swap_lock(-1);
     }
-
-    else {    // normal compare 
-        add_computation(); 
+    
+    else {    // normal compare
+        add_computation();
     }
 }
 
@@ -97,38 +97,37 @@ void add_computation () {
 }
 
 void set_mutex_lock(){
-    int mutex_ret_val; 
+    int mutex_ret_val;
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n", mutex_ret_val);
-        exit (1);  
     }
-    add_computation(); 
-    pthread_mutex_unlock(&m_lock);  
+    add_computation();
+    pthread_mutex_unlock(&m_lock);
 }
 
 void set_spinlock_lock(){
-    int spinlock_ret_val; 
+    int spinlock_ret_val;
     while (__sync_lock_test_and_set(&s_lock, 1));
-        add_computation(); 
+    add_computation();
     __sync_lock_release(&s_lock);
 }
 
 void set_compare_and_swap_lock(int num){
-    long long original = *counter_p; 
-    long long new;  
+    long long original = *counter_p;
+    long long new;
     while (__sync_val_compare_and_swap(counter_p, original, new) != original) {
         new = original + num;
     }
 }
 
 /*the name of the test (add-none for the most basic usage)
-the number of threads (from --threads=)
-the number of iterations (from --iterations=)
-the total number of operations performed (threads x iterations x 2, the "x 2" factor because you add 1 first and then add -1)
-the total run time (in nanoseconds)
-the average time per operation (in nanoseconds).
-the total at the end of the run (0 if there were no conflicting updates)*/
+ the number of threads (from --threads=)
+ the number of iterations (from --iterations=)
+ the total number of operations performed (threads x iterations x 2, the "x 2" factor because you add 1 first and then add -1)
+ the total run time (in nanoseconds)
+ the average time per operation (in nanoseconds).
+ the total at the end of the run (0 if there were no conflicting updates)*/
 
 void print_data(){
     if (strlen(test_name) == 0){
@@ -151,86 +150,86 @@ void print_data(){
 
 void set_flags(char* optarg){
     const char add_none [50]= "add-none";
-    const char add_m [50]= "add-m"; 
-    const char add_s [50]= "add-s"; 
-    const char add_c [50]= "add-c"; 
-    const char add_yield_none [50]= "add-yield-none"; 
-    const char add_yield_m [50]= "add-yield-m"; 
-    const char add_yield_s [50]= "add-yield-s"; 
-    const char add_yield_c [50]= "add-yield-c"; 
-
-
-    char m[] = "m"; 
-    char c[] = "c"; 
-    char s[] = "s"; 
-    char *letter_m = &m[0]; 
-    char *letter_c = &c[0]; 
-    char *letter_s = &s[0]; 
-
-
-    if (yield_flag == false) { 
+    const char add_m [50]= "add-m";
+    const char add_s [50]= "add-s";
+    const char add_c [50]= "add-c";
+    const char add_yield_none [50]= "add-yield-none";
+    const char add_yield_m [50]= "add-yield-m";
+    const char add_yield_s [50]= "add-yield-s";
+    const char add_yield_c [50]= "add-yield-c";
+    
+    
+    char m[] = "m";
+    char c[] = "c";
+    char s[] = "s";
+    char *letter_m = &m[0];
+    char *letter_c = &c[0];
+    char *letter_s = &s[0];
+    
+    
+    if (yield_flag == false) {
         if (strcmp(optarg, letter_m) == 0){
-            yield_flag = false; 
-            mutex_flag = true; 
-            strcpy (test_name, add_m); 
+            yield_flag = false;
+            mutex_flag = true;
+            strcpy (test_name, add_m);
             return;
         }
-
+        
         if (strcmp(optarg, letter_s) == 0){
-            yield_flag = false; 
+            yield_flag = false;
             spinlock_flag = true;
-            strcpy (test_name, add_s); 
+            strcpy (test_name, add_s);
             return;
         }
-
+        
         if (strcmp(optarg, letter_c) == 0){
-            yield_flag = false; 
+            yield_flag = false;
             compare_and_swap_flag = true;
-            strcpy (test_name, add_c); 
+            strcpy (test_name, add_c);
             return;
         }
         else {
-            yield_flag = false; 
-            mutex_flag = false; 
-            spinlock_flag = false; 
-            compare_and_swap_flag = false; 
-             strcpy (test_name, add_none); 
-             return;   
-        }
-    }
-
-    else {
-        if (strcmp(optarg, letter_m) == 0){
-            yield_flag = true; 
-            mutex_flag = true;        
-            strcpy (test_name, add_yield_m); 
-            return; 
-        }
-
-        else if (strcmp(optarg, letter_s) == 0){
-            yield_flag = true; 
-            spinlock_flag = true;        
-            strcpy (test_name, add_yield_s); 
-            return;       
-        }
-
-        else if (strcmp(optarg, letter_c) == 0){
-            yield_flag = true; 
-            compare_and_swap_flag = true; 
-            strcpy (test_name, add_yield_c);  
-            return;      
-        }
-        else {
-            yield_flag = true; 
-            mutex_flag = false; 
-            spinlock_flag = false; 
+            yield_flag = false;
+            mutex_flag = false;
+            spinlock_flag = false;
             compare_and_swap_flag = false;
-            strcpy (test_name, add_yield_none); 
+            strcpy (test_name, add_none);
+            return;
         }
-
     }
     
-} 
+    else {
+        if (strcmp(optarg, letter_m) == 0){
+            yield_flag = true;
+            mutex_flag = true;
+            strcpy (test_name, add_yield_m);
+            return;
+        }
+        
+        else if (strcmp(optarg, letter_s) == 0){
+            yield_flag = true;
+            spinlock_flag = true;
+            strcpy (test_name, add_yield_s);
+            return;
+        }
+        
+        else if (strcmp(optarg, letter_c) == 0){
+            yield_flag = true;
+            compare_and_swap_flag = true;
+            strcpy (test_name, add_yield_c);
+            return;
+        }
+        else {
+            yield_flag = true;
+            mutex_flag = false;
+            spinlock_flag = false;
+            compare_and_swap_flag = false;
+            strcpy (test_name, add_yield_none);
+        }
+        
+    }
+    
+}
 
 
 int main(int argc, char **argv) {
@@ -260,20 +259,23 @@ int main(int argc, char **argv) {
                 }
                 break;
             case 'S':
-                set_flags(optarg); 
+                set_flags(optarg);
                 break;
             case 'Y':
-                yield_flag = true; 
+                yield_flag = true;
                 break;
             case '?':
-                    fprintf (stderr, "bogus args \n");
-                    fflush(stderr);
-                    exit (1); 
+                fprintf (stderr, "bogus args \n");
+                fflush(stderr);
+                exit (1);
             default:
                 break;
         }
     }
-
+    
+    if (mutex_flag == true) {
+        pthread_mutex_init(&m_lock, NULL);
+    }
     //thread processing
     pthread_t add_thread [num_threads];
     for (i; i < num_threads; i++){
@@ -283,13 +285,14 @@ int main(int argc, char **argv) {
     for (i; i < num_threads; i++){
         pthread_join(add_thread[i], (void**)ret);
     }
-
-    clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-    print_data ();
     
-    if (counter != 0){
-        exit (2); 
+    if (mutex_flag == true){
+        pthread_mutex_destroy(&m_lock);
     }
-    exit (0); 
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    
+    print_data ();
+    exit (0);
 }
+
+// /usr/local/cs/bin/gnuplot

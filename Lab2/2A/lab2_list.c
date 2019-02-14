@@ -147,6 +147,7 @@ void set_spinlock_lock(int t_ID){
     while (__sync_lock_test_and_set(&s_lock, 1));
          do_computation_lookup_to_delete(t_ID); 
     __sync_lock_release(&s_lock);
+
 }
 
 void set_mutex_lock(int t_ID){
@@ -226,7 +227,6 @@ void  do_computation_len (int t_ID) {
     //printf ("list len is: %d\n", linked_l_len); 
 }
 void  do_computation_lookup_to_delete (int t_ID) {
-   
 
     int temp_thread_ID = t_ID; 
     SortedListElement_t *found_element; 
@@ -256,8 +256,11 @@ void *linked_l_handler(void *vargp) {
 
     else {
         do_computation_insert(t_ID); 
-         do_computation_lookup_to_delete(t_ID); 
+        do_computation_len(t_ID); 
+        do_computation_lookup_to_delete(t_ID);
     }
+    
+
     pthread_exit(NULL); 
 	
 }
@@ -368,6 +371,7 @@ int main (int argc, char **argv) {
 
     if (SortedList_length(linked_l) != 0) {
     	fprintf(stderr, "Length of List After Computation is not 0"); 
+        exit (2); 
     }
 
     printdata(); 
