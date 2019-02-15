@@ -17,6 +17,9 @@
 #include <sched.h>
 #include "SortedList.h"
 
+long thread_timer[1000]; 
+int thread_timer_counter = 0; 
+long avg_thread_time = 0; 
 int opt_yield = 0; 
 int num_threads = 1;
 int num_iterations = 1;
@@ -32,11 +35,13 @@ char yieldopts[4];
 bool mutex_flag = false; 
 bool spinlock_flag = false; 
 char print_field_flag[100]; 
+int number_of_lists = 1; 
 static struct option long_options[] = {
     {"threads", required_argument, 0, 'T' },
     {"iterations", required_argument, 0, 'I' },
     {"yield", required_argument, 0, 'Y' },
     {"sync", required_argument, 0, 'S' },
+    {"list", required_argument, 0, 'L' },
     {0, 0, 0, 0}
 };
 
@@ -51,7 +56,9 @@ void do_computation_insert(int t_ID);
 void  do_computation_lookup_to_delete(int t_ID);
 void do_computation_delete(SortedListElement_t *found_element);  
 int do_computation_len();
-
+long compute_total_time(); 
+long compute_average_thread_time (int num_operations_performed); 
+void compute_time_difference();
 
 void format_flags(){
     strcpy (print_field_flag, "list-");
@@ -73,6 +80,7 @@ void format_flags(){
         strcat(print_field_flag, "-none");
     }
 }
+
 /* printing: the name of the test, which is of the form: list-yieldopts-syncopts: where
 yieldopts = {none, i,d,l,id,il,dl,idl}
 syncopts = {none,s,m}
@@ -85,21 +93,35 @@ the average time per operation (in nanoseconds).*/
 
 
 void printdata() {
-	format_flags(); 
+	int num_operations_performed = num_threads * num_iterations * 3;
+    long total_run_time; 
+    long average_thread_time; 
+    format_flags(); 
+    total_run_time = compute_total_time(); 
+    average_thread_time = compute_average_thread_time(num_operations_performed); 
+	long average_time_per_operation = total_run_time/num_operations_performed; 
+    printf ("%s,%d,%d,%d,%d,%ld,%ld,%ld\n", print_field_flag, num_threads, num_iterations, number_of_lists, num_operations_performed, total_run_time, average_time_per_operation, average_thread_time); 
 
+}
+
+long compute_average_thread_time (int num_operations_performed){
+    long acc = 0; 
+    int iterator;  
+    for (iterator=0; iterator<= thread_timer_counter; iterator++){
+        acc = acc + thread_timer[iterator]; 
+    }
+    return acc/num_operations_performed; 
+}
+
+long compute_total_time() {
     long curr_time_sec_end = (long) end_time.tv_sec;
     long curr_time_ms_end = end_time.tv_nsec/1000000000;
     long curr_time_sec =(long)start_time.tv_sec;
     long curr_time_ms = start_time.tv_nsec/1000000000;
-
     long total_ns = (curr_time_sec_end +  curr_time_ms_end) - (curr_time_ms + curr_time_ms);
-
-	int num_operations_performed = num_threads * num_iterations * 3;
-	long average_time_per_operation = total_ns/num_operations_performed; 
-	
-    printf ("%s,%d,%d,1,%d,%ld,%ld\n", print_field_flag, num_threads, num_iterations, num_operations_performed, total_ns, average_time_per_operation); 
-
+    return total_ns; 
 }
+
 void createList(){
     num_total = num_threads * num_iterations;
 	linked_l = malloc(sizeof(SortedList_t));
@@ -108,7 +130,6 @@ void createList(){
 	linked_l->key = NULL;
 	int i; 
 
-	
 	//printf ("createList num_total is: %d\n", num_total); 
 
 	int counter =0; 
@@ -127,7 +148,6 @@ void createList(){
 		alphakey[4] = '\0';
 		original_list[counter]->key = alphakey; 
 		//printf ("created : %p\n", (void*)original_list[counter]);
-
 	}
 	//printf("finished\n");
 }
@@ -135,6 +155,12 @@ void createList(){
 void set_spinlock_lock(int t_ID){
     int spinlock_ret_val; 
     int ll_len; 
+
+    struct timespec thread_start_time; 
+    struct timespec thread_end_time;
+    long thread_comp_time; 
+    clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
+
     //printf ("spinlock case \n"); 
     while (__sync_lock_test_and_set(&s_lock, 1));
         do_computation_insert(t_ID); 
@@ -148,13 +174,19 @@ void set_spinlock_lock(int t_ID){
          do_computation_lookup_to_delete(t_ID); 
     __sync_lock_release(&s_lock);
 
+    clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
+    compute_time_difference(thread_start_time, thread_end_time); 
 }
 
 void set_mutex_lock(int t_ID){
     int mutex_ret_val;
     int ll_len; 
-    //printf ("mutexlock case \n"); 
+    struct timespec thread_start_time; 
+    struct timespec thread_end_time;
+    long thread_comp_time; 
+    clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
 
+    //printf ("mutexlock case \n"); 
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
@@ -178,7 +210,21 @@ void set_mutex_lock(int t_ID){
         printf ("could not set mutex lock \n"); 
     }
     do_computation_lookup_to_delete(t_ID); 
-    pthread_mutex_unlock(&m_lock);  
+    pthread_mutex_unlock(&m_lock); 
+
+    clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
+    compute_time_difference(thread_start_time, thread_end_time); 
+}
+
+void compute_time_difference (struct timespec start_time, struct timespec end_time){
+    long curr_time_sec_end = (long) end_time.tv_sec;
+    long curr_time_ms_end = end_time.tv_nsec/1000000000;
+    long curr_time_sec_start =(long)start_time.tv_sec;
+    long curr_time_ms_start = start_time.tv_nsec/1000000000;
+    long total_ns = (curr_time_sec_end +  curr_time_ms_end) - (curr_time_ms_start + curr_time_ms_start);
+    thread_timer[thread_timer_counter] = total_ns; 
+    //printf ("this operation took: %ld sec\n", total_ns); 
+    thread_timer_counter ++; 
 }
 
 void do_computation_insert(int t_ID) {
@@ -315,6 +361,11 @@ int main (int argc, char **argv) {
             case 'I':
                 if (optarg) {
                     num_iterations = atoi(optarg);
+                }
+                break;
+            case 'L':
+                if (optarg) {
+                    number_of_lists = atoi(optarg);
                 }
                 break;
             case 'Y':
