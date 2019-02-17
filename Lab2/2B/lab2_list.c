@@ -64,13 +64,25 @@ void populate_split_list();
 void hash_and_insert(int temp_thread_ID);
 static size_t fnv1a_hash(const char* cp); 
 
+unsigned int hasher(const unsigned char *str)
+{
+    unsigned int hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash%number_of_lists;
+}
+
 void hash_and_insert(int temp_thread_ID){
     printf ("here in insert and hash\n");
     int i = 0; 
     int hash_num;
     printf ("we are looking at original_list[%d] \n", temp_thread_ID); 
     printf ("key to hash is %p\n", original_list[temp_thread_ID]); 
-    hash_num = fnv1a_hash(original_list[temp_thread_ID]->key);
+    hash_num = hasher(original_list[temp_thread_ID]->key);
+    //hash_num = fnv1a_hash(original_list[temp_thread_ID]->key);
     printf ("hash num is: %d\n", hash_num); 
     SortedList_insert(split_list[hash_num], original_list[temp_thread_ID]);
 }
@@ -86,8 +98,9 @@ void do_computation_insert(int t_ID) {
     for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
         printf ("before insertion\n"); 
         hash_and_insert(temp_thread_ID); 
-        printf ("INSERTED \n"); 
     }
+    printf ("exiting INSERTED \n"); 
+
 }
 
 /* Fowler/Noll/Vo (FNV) hash function, variant 1a: found here on stack exchange:
@@ -312,21 +325,27 @@ void do_computation_delete(SortedListElement_t *found_element) {
 }
 void  do_computation_lookup_to_delete (int t_ID) {
     int i;
+    printf ("in lookup to delete \n");
     int temp_thread_ID = t_ID; 
-    SortedListElement_t *found_element; 
-    SortedListElement_t *find_me;  
+    SortedListElement_t *found_element = NULL; 
     while (temp_thread_ID < num_total) {
-        find_me = original_list[temp_thread_ID]; 
-        for (i = 0; i < number_of_lists; i++){
-            found_element = SortedList_lookup (split_list[i], find_me->key); 
-            //printf ("found element\n"); 
+            int bucket = hasher(original_list[temp_thread_ID]->key); 
+            printf("the bucket we will use is %d\n", bucket); 
+            found_element = SortedList_lookup(split_list[bucket], original_list[temp_thread_ID]->key);
+           // printf ("can we find. the element?\n");
+            //found_element = SortedList_lookup (split_list[bucket], find_me->key); 
+            printf ("found element\n"); 
             if (found_element != NULL){
+                printf ("about to delete\n");
                 do_computation_delete (found_element); 
+                printf ("DELETED\n");
+
                 break; 
             }
-        }
-        
-        temp_thread_ID++; 
+            else {
+                printf ("found elem is null\n"); 
+            }
+        temp_thread_ID = temp_thread_ID + num_threads; 
     } 
     //printf ("exiting thread \n");
  return; 
