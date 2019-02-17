@@ -25,6 +25,7 @@ int num_threads = 1;
 int num_iterations = 1;
 SortedListElement_t **original_list;
 SortedList_t *linked_l;
+SortedList_t **split_list;
 struct timespec start_time;
 struct timespec end_time;
 pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -47,7 +48,7 @@ static struct option long_options[] = {
 
 SortedList_t *m_list; 
 SortedListElement_t **m_empty_list;
-
+void create_split_list(); 
 void *linked_l_handler(void *vargp);
 void createList(); 
 void printdata();
@@ -55,10 +56,68 @@ void format_flags();
 void do_computation_insert(int t_ID);  
 void  do_computation_lookup_to_delete(int t_ID);
 void do_computation_delete(SortedListElement_t *found_element);  
-int do_computation_len();
+int check_list_len();
 long compute_total_time(); 
 long compute_average_thread_time (int num_operations_performed); 
 void compute_time_difference();
+void populate_split_list(); 
+void hash_and_insert(int temp_thread_ID);
+static size_t fnv1a_hash(const char* cp); 
+
+void hash_and_insert(int temp_thread_ID){
+    printf ("here in insert and hash\n");
+    int i = 0; 
+    int hash_num;
+    printf ("we are looking at original_list[%d] \n", temp_thread_ID); 
+    printf ("key to hash is %p\n", original_list[temp_thread_ID]); 
+    hash_num = fnv1a_hash(original_list[temp_thread_ID]->key);
+    printf ("hash num is: %d\n", hash_num); 
+    SortedList_insert(split_list[hash_num], original_list[temp_thread_ID]);
+}
+
+void do_computation_insert(int t_ID) {
+    printf ("HERE\n"); 
+    //printf ("here in linked_l_handler \n"); 
+    //printf ("t_ID is: %d and num total is: %d \n", t_ID, num_total); 
+    int temp_thread_ID = t_ID; 
+    //printf ("threadID is: %d \n", t_ID); 
+    //printf ("num_total is: %d\n", num_total); 
+    printf ("temp_thread_ID is: %d, num_total is: %d, t_id is: %d\n", temp_thread_ID, num_total, t_ID); 
+    for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
+        printf ("before insertion\n"); 
+        hash_and_insert(temp_thread_ID); 
+        printf ("INSERTED \n"); 
+    }
+}
+
+/* Fowler/Noll/Vo (FNV) hash function, variant 1a: found here on stack exchange:
+https://codereview.stackexchange.com/questions/85556/simple-string-hashing-algorithm-implementation */
+static size_t fnv1a_hash(const char* cp)
+{
+    if (cp == NULL){
+        printf ("this is null \n");
+    }
+    printf ("cp is %s\n", *cp);
+    printf ("inside hasher \n");
+    size_t hash = 0x811c9dc5;
+    while (*cp) {
+        hash ^= (unsigned char) *cp++;
+        hash *= 0x01000193;
+    }
+    return (hash % number_of_lists);
+}
+
+void create_split_list(){
+    split_list = malloc(number_of_lists * sizeof(SortedList_t*));
+    int i = 0;
+    while (i < number_of_lists){
+        split_list[i] = malloc(sizeof(SortedList_t));
+        split_list[i]->prev = split_list[i];
+        split_list[i]->next = split_list[i];
+        split_list[i]->key = NULL;
+        i++;
+    }
+}
 
 void format_flags(){
     strcpy (print_field_flag, "list-");
@@ -123,13 +182,13 @@ long compute_total_time() {
 }
 
 void createList(){
-    num_total = num_threads * num_iterations;
-	linked_l = malloc(sizeof(SortedList_t));
+   num_total = num_threads * num_iterations;
+	/*linked_l = malloc(sizeof(SortedList_t));
 	linked_l->next = linked_l;
 	linked_l->prev = linked_l;
-	linked_l->key = NULL;
-	int i; 
+	linked_l->key = NULL;*/
 
+	int i; 
 	//printf ("createList num_total is: %d\n", num_total); 
 
 	int counter =0; 
@@ -147,7 +206,8 @@ void createList(){
 			}
 		alphakey[4] = '\0';
 		original_list[counter]->key = alphakey; 
-		//printf ("created : %p\n", (void*)original_list[counter]);
+        printf ("original_list[counter]->key is: %s\n", original_list[counter]->key); 
+		printf ("created : %p\n", (void*)original_list[counter]);
 	}
 	//printf("finished\n");
 }
@@ -163,11 +223,12 @@ void set_spinlock_lock(int t_ID){
 
     //printf ("spinlock case \n"); 
     while (__sync_lock_test_and_set(&s_lock, 1));
+        printf( "t ID in spinlock is: %d\n", t_ID); 
         do_computation_insert(t_ID); 
     __sync_lock_release(&s_lock);
 
     while (__sync_lock_test_and_set(&s_lock, 1));
-         ll_len = do_computation_len(); 
+         ll_len = check_list_len(); 
     __sync_lock_release(&s_lock);
 
     while (__sync_lock_test_and_set(&s_lock, 1));
@@ -185,7 +246,6 @@ void set_mutex_lock(int t_ID){
     struct timespec thread_end_time;
     long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
-
     //printf ("mutexlock case \n"); 
     mutex_ret_val = pthread_mutex_lock(&m_lock);
     if (mutex_ret_val == -1) {
@@ -200,7 +260,7 @@ void set_mutex_lock(int t_ID){
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
     }
-    ll_len = do_computation_len(); 
+    ll_len = check_list_len(); 
     
     pthread_mutex_unlock(&m_lock);  
 
@@ -227,22 +287,6 @@ void compute_time_difference (struct timespec start_time, struct timespec end_ti
     thread_timer_counter ++; 
 }
 
-void do_computation_insert(int t_ID) {
-    //printf ("here in linked_l_handler \n"); 
-    //printf ("t_ID is: %d and num total is: %d \n", t_ID, num_total); 
-    int temp_thread_ID = t_ID; 
-    //printf ("threadID is: %d \n", t_ID); 
-    //printf ("num_total is: %d\n", num_total); 
-
-    for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
-        //printf ("inside iterating loop\n"); 
-        //printf ("temp_thread_ID is: %d \n", temp_thread_ID); 
-        //printf ("the one we are inserting is: %p\n", (void*)original_list[temp_thread_ID]);
-        SortedList_insert(linked_l, original_list[temp_thread_ID]);
-        //printf ("done inserting!\n");
-    }
-}
-
 void do_computation_delete(SortedListElement_t *found_element) {
     if (mutex_flag == true){
         pthread_mutex_lock(&m_lock);
@@ -266,27 +310,22 @@ void do_computation_delete(SortedListElement_t *found_element) {
         __sync_lock_release(&s_lock);
     }
 }
-
-int do_computation_len () {
-     int linked_l_len; 
-    //printf ("after inserting \n");
-    //gets the list length
-    linked_l_len = SortedList_length(linked_l);
-    //printf ("list len is: %d\n", linked_l_len);
-    return linked_l_len;  
-}
 void  do_computation_lookup_to_delete (int t_ID) {
-
+    int i;
     int temp_thread_ID = t_ID; 
     SortedListElement_t *found_element; 
     SortedListElement_t *find_me;  
     while (temp_thread_ID < num_total) {
         find_me = original_list[temp_thread_ID]; 
-        found_element = SortedList_lookup (linked_l, find_me->key); 
-        //printf ("found element\n"); 
-        if (found_element != NULL){
-            do_computation_delete (found_element); 
+        for (i = 0; i < number_of_lists; i++){
+            found_element = SortedList_lookup (split_list[i], find_me->key); 
+            //printf ("found element\n"); 
+            if (found_element != NULL){
+                do_computation_delete (found_element); 
+                break; 
+            }
         }
+        
         temp_thread_ID++; 
     } 
     //printf ("exiting thread \n");
@@ -295,7 +334,8 @@ void  do_computation_lookup_to_delete (int t_ID) {
 
 void *linked_l_handler(void *vargp) {
     int ll_len; 
-    int t_ID = *((int *) vargp); 
+    int t_ID = *((int *) vargp);
+    printf ("t_id is: %d\n", t_ID);  
     if (mutex_flag == true){
         set_mutex_lock(t_ID);
     }
@@ -306,7 +346,7 @@ void *linked_l_handler(void *vargp) {
 
     else {
         do_computation_insert(t_ID); 
-        ll_len = do_computation_len(); 
+        ll_len = check_list_len(); 
         do_computation_lookup_to_delete(t_ID);
     }
     
@@ -336,6 +376,17 @@ void set_flags(char* optarg){
     	lockflag_type[4] = '\0'; 
     }
 } 
+
+int check_list_len() {
+    int i = 0; 
+    int acc; 
+    while (i < number_of_lists){
+        acc = acc + SortedList_length(split_list[i]);    
+        i++;
+    }
+    return acc; 
+} 
+
 
 int main (int argc, char **argv) {
 	int c; 
@@ -402,9 +453,10 @@ int main (int argc, char **argv) {
     }
   
     createList();
+    create_split_list(); 
     clock_gettime(CLOCK_MONOTONIC, &start_time); 
-    int c1 =0; 
-	/*for (c1; c1 < num_total; c1++){
+    /*int c1 =0; 
+	for (c1; c1 < num_total; c1++){
 		printf ("checking creation of : %p\n", (void*)original_list[c1]);
 	}*/
 	pthread_t *add_thread = malloc((sizeof(pthread_t)*num_threads)); 
@@ -422,12 +474,11 @@ int main (int argc, char **argv) {
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-    if (SortedList_length(linked_l) != 0) {
-    	fprintf(stderr, "Length of List After Computation is not 0"); 
+    if (check_list_len() != 0){
+        fprintf(stderr, "Length of List After Computation is %d, not 0", check_list_len()); 
         exit (2); 
     }
-
+    printf ("made it to the end\n"); 
     printdata(); 
     exit (0);
     
