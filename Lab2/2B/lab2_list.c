@@ -29,6 +29,7 @@ SortedList_t **split_list;
 struct timespec start_time;
 struct timespec end_time;
 pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t *m_lock_arr; 
 volatile int s_lock = 0;
 int num_total;  
 char lockflag_type[5]; 
@@ -55,7 +56,7 @@ void printdata();
 void format_flags();
 void do_computation_insert(int t_ID);  
 void  do_computation_lookup_to_delete(int t_ID);
-void do_computation_delete(SortedListElement_t *found_element);  
+void do_computation_delete(SortedListElement_t *found_element, int t_ID); 
 int check_list_len();
 long compute_total_time(); 
 long compute_average_thread_time (int num_operations_performed); 
@@ -115,27 +116,12 @@ void do_computation_insert(int t_ID) {
     }
 }
 
-/* Fowler/Noll/Vo (FNV) hash function, variant 1a: found here on stack exchange:
-https://codereview.stackexchange.com/questions/85556/simple-string-hashing-algorithm-implementation */
-static size_t fnv1a_hash(const char* cp)
-{
-    if (cp == NULL){
-        printf ("this is null \n");
-    }
-    printf ("cp is %s\n", *cp);
-    printf ("inside hasher \n");
-    size_t hash = 0x811c9dc5;
-    while (*cp) {
-        hash ^= (unsigned char) *cp++;
-        hash *= 0x01000193;
-    }
-    return (hash % number_of_lists);
-}
-
 void create_split_list(){
     //create the heads
+    printf ("got into split list fx\n"); 
     split_list = malloc(number_of_lists * sizeof(SortedList_t*));
     int i = 0;
+    int l = 0; 
     while (i < number_of_lists){
         split_list[i] = malloc(sizeof(SortedList_t));
         split_list[i]->prev = split_list[i];
@@ -143,6 +129,17 @@ void create_split_list(){
         split_list[i]->key = NULL;
         i++;
     }
+
+    if (mutex_flag == true){
+        m_lock_arr = (pthread_mutex_t *)calloc(number_of_lists, sizeof(pthread_mutex_t));
+        while (l < number_of_lists){
+            printf("Created lock for list:\t%d\n",l);
+            pthread_mutex_init(m_lock_arr+l, NULL);
+            l++; 
+            printf ("created a lock\n"); 
+        }
+    }
+    
 }
 
 void format_flags(){
@@ -271,6 +268,7 @@ void set_spinlock_lock(int t_ID){
 
     while (__sync_lock_test_and_set(&s_lock, 1));
          ll_len = check_list_len(); 
+         printf ("linked_l length is now: %d\n", ll_len); 
     __sync_lock_release(&s_lock);
 
     while (__sync_lock_test_and_set(&s_lock, 1));
@@ -288,31 +286,33 @@ void set_mutex_lock(int t_ID){
     struct timespec thread_end_time;
     long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
-    //printf ("mutexlock case \n"); 
-    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    printf ("mutexlock case with tID as %d \n", t_ID); 
+    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
+    printf ("set the lock successfully \n"); 
+
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
     }
     do_computation_insert(t_ID); 
     
-    pthread_mutex_unlock(&m_lock);  
+    pthread_mutex_unlock(m_lock_arr+t_ID);  
 
     ///////////////////////////////////////////
-    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
     }
     ll_len = check_list_len(); 
     
-    pthread_mutex_unlock(&m_lock);  
+    pthread_mutex_unlock(m_lock_arr+t_ID);  
 
     ///////////////////////////////////////////
-    mutex_ret_val = pthread_mutex_lock(&m_lock);
+    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
     }
     do_computation_lookup_to_delete(t_ID); 
-    pthread_mutex_unlock(&m_lock); 
+    pthread_mutex_unlock(m_lock_arr+t_ID); 
 
     clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
     compute_time_difference(thread_start_time, thread_end_time); 
@@ -329,13 +329,15 @@ void compute_time_difference (struct timespec start_time, struct timespec end_ti
     thread_timer_counter ++; 
 }
 
-void do_computation_delete(SortedListElement_t *found_element) {
-    if (mutex_flag == true){
-        pthread_mutex_lock(&m_lock);
+void do_computation_delete(SortedListElement_t *found_element, int t_ID) {
+    printf ("made it to the beginning of delete \n"); 
+    /*if (mutex_flag == true){
+        printf ("in mutex flag\n");
+        pthread_mutex_lock(m_lock_arr+t_ID);
     }
     else if (spinlock_flag == true){
         while (__sync_lock_test_and_set(&s_lock, 1));
-    }
+    }*/
             
     /////////////////////////////////////////////
     int del_res; 
@@ -344,32 +346,31 @@ void do_computation_delete(SortedListElement_t *found_element) {
         printf ("could not delete the node\n");
     }
     /////////////////////////////////////////////
-    if (mutex_flag == true){
-                pthread_mutex_unlock(&m_lock);  
-
+    /*if (mutex_flag == true){
+        pthread_mutex_unlock(m_lock_arr+t_ID);  
     }
     else if (spinlock_flag == true){
         __sync_lock_release(&s_lock);
     }
+    printf ("made it to the end of delete \n"); */
 }
 void  do_computation_lookup_to_delete (int t_ID) {
     int i;
+    printf ("in lookup to delete fx \n \n"); 
+    int hash_num;
     int temp_thread_ID = t_ID; 
     SortedListElement_t *found_element; 
     SortedListElement_t *find_me;  
     while (temp_thread_ID < num_total) {
-        find_me = original_list[temp_thread_ID]; 
-        for (i = 0; i < number_of_lists; i++){
-            found_element = SortedList_lookup (split_list[i], find_me->key); 
-            //printf ("found element\n"); 
-            if (found_element != NULL){
-                do_computation_delete (found_element); 
-                break; 
-            }
-        }
+        find_me = original_list[temp_thread_ID];
+        hash_num = naive_hasher (find_me->key); 
+        printf("hashnum is: %d\n", hash_num);  
+        found_element = SortedList_lookup (split_list[hash_num], find_me->key); 
+        printf ("about to delte \n");
+        do_computation_delete (found_element, t_ID); 
+        temp_thread_ID++;  
+    }
         
-        temp_thread_ID++; 
-    } 
     //printf ("exiting thread \n");
  return; 
 }
