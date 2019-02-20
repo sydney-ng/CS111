@@ -61,16 +61,15 @@ long compute_total_time();
 long compute_average_thread_time (int num_operations_performed); 
 void compute_time_difference();
 void populate_split_list(); 
-void hash_and_insert(int temp_thread_ID);
+void hash_and_insert(int temp_thread_ID, int hash_num);
 static size_t fnv1a_hash(const char* cp); 
 
-void hash_and_insert(int temp_thread_ID){
+void hash_and_insert(int temp_thread_ID, int hash_num){
     printf ("here in insert and hash\n");
     int i = 0; 
-    int hash_num;
     printf ("we are looking at original_list[%d] \n", temp_thread_ID); 
     printf ("key to hash is %p\n", original_list[temp_thread_ID]); 
-    hash_num = fnv1a_hash(original_list[temp_thread_ID]->key);
+    //hash_num = fnv1a_hash(original_list[temp_thread_ID]->key);
     printf ("hash num is: %d\n", hash_num); 
     SortedList_insert(split_list[hash_num], original_list[temp_thread_ID]);
 }
@@ -84,8 +83,6 @@ int naive_hasher(const unsigned char *str)
 
     while (iterator < 4){
        int a = str[iterator]; 
-       printf ("a as a char is: %s\n", str[iterator]);
-       printf ("a as an int is: %d\n", a);
        acc += a;
        iterator++;
     }
@@ -97,13 +94,11 @@ void do_computation_insert(int t_ID) {
     int hash_num;
     printf ("HERE\n"); 
     int i;
-    printf ("\n lets check original_list: \n"); 
-    for (i= 0; i <3; i++){
-        printf ("original_list of %d is:", i); 
-        printf ("%s", original_list[i]->key[0]); 
-        printf ("%c", original_list[i]->key[1]); 
-        printf ("%c", original_list[i]->key[2]);
-        printf ("%c\n", original_list[i]->key[3]); 
+    printf ("\n in computation_insert, lets check original_list: \n"); 
+    
+    int counter =0; 
+    for (counter; counter < num_total; counter++){
+        printf ("o_l [%d] is: %p with key: %s\n", counter, original_list[counter], original_list[counter]->key ); 
     }
     //printf ("here in linked_l_handler \n"); 
     //printf ("t_ID is: %d and num total is: %d \n", t_ID, num_total); 
@@ -115,7 +110,7 @@ void do_computation_insert(int t_ID) {
             hash_num = naive_hasher(original_list[temp_thread_ID]->key);
             printf ("hashz num is: %d\n", hash_num); 
     printf ("before insertion\n"); 
-        //hash_and_insert(temp_thread_ID); 
+        hash_and_insert(temp_thread_ID, hash_num); 
         printf ("INSERTED \n"); 
     }
 }
@@ -380,6 +375,13 @@ void  do_computation_lookup_to_delete (int t_ID) {
 }
 
 void *linked_l_handler(void *vargp) {
+    int counter =0; 
+    printf ("in linked_l\n"); 
+
+    for (counter; counter < num_total; counter++){
+        printf ("in linked_l_handler o_l [%d] is: %p with key: %s\n", counter, original_list[counter], original_list[counter]->key ); 
+    }
+
     int ll_len; 
     int t_ID = *((int *) vargp);
     printf ("t_id is: %d\n", t_ID);  
