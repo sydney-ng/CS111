@@ -112,18 +112,22 @@ void do_computation_insert(int t_ID) {
         //printf ("hashz num is: %d\n", hash_num); 
         //printf ("before insertion\n"); 
         if (mutex_flag == true){
-            pthread_mutex_lock(hash_num);
+            pthread_mutex_lock(&m_lock_arr[hash_num]);
         }
         else if (spinlock_flag == true){
-            while (__sync_lock_test_and_set(hash_num, 1));
+            printf ("   going to set the lock for INSERT %d for TID:%d \n", hash_num, t_ID);
+
+            while (__sync_lock_test_and_set(&s_lock_arr[hash_num], 1));
         }
         hash_and_insert(temp_thread_ID, hash_num); 
         //printf ("INSERTED \n"); 
         if (mutex_flag == true){
-            pthread_mutex_unlock(hash_num);  
+            pthread_mutex_unlock(&m_lock_arr[hash_num]);  
         }
         else if (spinlock_flag == true){
-            while (__sync_lock_release(&s_lock_arr[t_ID]));
+            __sync_lock_release(&s_lock_arr[hash_num]);
+            printf ("   releasing the lock for INSERT %d  for TID:%d \n", hash_num, t_ID);
+
         }
     }
 }
@@ -289,25 +293,27 @@ void set_spinlock_lock(int t_ID){
     long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
 
-    printf ("       lock insert for tid: %d \n", t_ID); 
-    while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
+    //printf ("       lock insert for tid: %d \n", t_ID); 
+    //while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
         //printf( "t_ID in spinlock is: %d\n", t_ID); 
         do_computation_insert(t_ID); 
-    printf ("       unlock insert for tid: %d \n", t_ID); 
-    __sync_lock_release(&s_lock_arr[t_ID]);
+    //printf ("       unlock insert for tid: %d \n", t_ID); 
+    //__sync_lock_release(&s_lock_arr[t_ID]);
 
     printf ("           lock length for tid: %d \n", t_ID); 
-    while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
+    //while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
         int ll_len; 
-        ll_len = check_list_len(); 
-        printf ("       unlock length for tid: %d \n", t_ID); 
-    __sync_lock_release(&s_lock_arr[t_ID]);
+        ll_len = check_list_len();
+    printf ("THE LENGTH OF LIST AFTER INSERT IS : %d \n", ll_len); 
 
-    printf ("               lock lookup/delete for tid: %d \n", t_ID); 
-    while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
+    //    printf ("       unlock length for tid: %d \n", t_ID); 
+    //__sync_lock_release(&s_lock_arr[t_ID]);
+
+    //printf ("               lock lookup/delete for tid: %d \n", t_ID); 
+    //while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
          do_computation_lookup_to_delete(t_ID); 
-    printf ("               unlock lookup/delete for tid: %d \n", t_ID); 
-    __sync_lock_release(&s_lock_arr[t_ID]);
+    //printf ("               unlock lookup/delete for tid: %d \n", t_ID); 
+    //__sync_lock_release(&s_lock_arr[t_ID]);
 
     printf ("finished spinlock case for t_ID: %d \n\n", t_ID); 
     /*int i; 
@@ -327,42 +333,42 @@ void set_mutex_lock(int t_ID){
     long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
     //printf ("mutexlock case with tID as %d \n", t_ID); 
-    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
+    //mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
     //printf ("set the lock successfully \n"); 
 
-    if (mutex_ret_val == -1) {
-        printf ("could not set mutex lock \n"); 
-    }
+    //if (mutex_ret_val == -1) {
+    //    printf ("could not set mutex lock \n"); 
+    //}
     do_computation_insert(t_ID); 
     
-    pthread_mutex_unlock(m_lock_arr+t_ID);  
+    //pthread_mutex_unlock(m_lock_arr+t_ID);  
 
     ///////////////////////////////////////////
-    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
-    if (mutex_ret_val == -1) {
+    //mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
+    /*if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
-    }
+    }*/
     int ll_len; 
     ll_len = check_list_len();
     //printf ("ll_len after insert is: %d\n", ll_len);  
     
-    pthread_mutex_unlock(m_lock_arr+t_ID);  
+    //pthread_mutex_unlock(m_lock_arr+t_ID);  
 
     ///////////////////////////////////////////
-    mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
+    /*mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
-    }
+    }*/
     do_computation_lookup_to_delete(t_ID); 
-    pthread_mutex_unlock(m_lock_arr+t_ID); 
+    //pthread_mutex_unlock(m_lock_arr+t_ID); 
 
     clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
     compute_time_difference(thread_start_time, thread_end_time); 
 
-   int k = 0;
+   /*int k = 0;
     for (k; k < number_of_lists; k++){
         pthread_mutex_unlock(m_lock_arr+k); 
-    }
+    }*/
     }
 
 void compute_time_difference (struct timespec start_time, struct timespec end_time){
@@ -408,21 +414,35 @@ void  do_computation_lookup_to_delete (int t_ID) {
     int temp_thread_ID = t_ID; 
     SortedListElement_t *found_element; 
     SortedListElement_t *find_me;  
-    while (temp_thread_ID < num_total) {
+    for (temp_thread_ID; temp_thread_ID < num_total; temp_thread_ID += num_threads) {
         find_me = original_list[temp_thread_ID];
-        hash_num = naive_hasher (find_me->key); 
+        hash_num = naive_hasher (original_list[temp_thread_ID]->key); 
         //printf("hashnum is: %d\n", hash_num);  
-        found_element = SortedList_lookup (split_list[hash_num], find_me->key); 
+        if (mutex_flag == true){
+            pthread_mutex_lock(&m_lock_arr[hash_num]);
+        }
+        else if (spinlock_flag == true){
+            printf ("going to set the lock for lookup to delete of %d \n", hash_num);
+            while (__sync_lock_test_and_set(&s_lock_arr[hash_num], 1));
+        }
+
+        found_element = SortedList_lookup (split_list[hash_num], original_list[temp_thread_ID]->key); 
         if (found_element!= NULL){
-           // printf ("about to delte \n");
+            printf (" you found a match!!!!!! about to delte \n");
             do_computation_delete (found_element, t_ID); 
             //printf ("DELETED ONE\n"); 
         }
         else {
-            //printf ("can't delete\n");
-            return;
+            printf ("can't delete\n");
         }
-        temp_thread_ID++;  
+                
+        if (mutex_flag == true){
+            pthread_mutex_unlock(&m_lock_arr[hash_num]);  
+        }
+        else if (spinlock_flag == true){
+            printf ("released lock for lookup to delete of %d \n", hash_num);
+            __sync_lock_release(&s_lock_arr[hash_num]);
+        }
     }
         
     //printf ("exiting thread \n");
@@ -436,12 +456,12 @@ void *linked_l_handler(void *vargp) {
         printf ("in linked_l_handler o_l [%d] is: %p with key: %s\n", counter, original_list[counter], original_list[counter]->key ); 
     }*/
     int t_ID = *((int *) vargp);
-
+    //printf ("in linked_l_handler, tid is: %d \n", t_ID); 
     int ll_len; 
     if (mutex_flag == true){
         //printf ("this is the mutex option \n"); 
         //printf ("INSIDE LINKED L HANDLER, t_id is: %d\n", t_ID);  
-        //set_mutex_lock(t_ID);
+        set_mutex_lock(t_ID);
         //printf ("made it back here TO OG FUNCTIONNNNNNNNNNN\n");
     }
 
