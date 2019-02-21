@@ -29,7 +29,8 @@ SortedList_t **split_list;
 struct timespec start_time;
 struct timespec end_time;
 pthread_mutex_t m_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t *m_lock_arr; 
+pthread_mutex_t *m_lock_arr;
+int * s_lock_arr; 
 volatile int s_lock = 0;
 int num_total;  
 char lockflag_type[5]; 
@@ -114,6 +115,7 @@ void do_computation_insert(int t_ID) {
         hash_and_insert(temp_thread_ID, hash_num); 
         printf ("INSERTED \n"); 
     }
+    printf ("done\n"); 
 }
 
 void create_split_list(){
@@ -122,6 +124,7 @@ void create_split_list(){
     split_list = malloc(number_of_lists * sizeof(SortedList_t*));
     int i = 0;
     int l = 0; 
+    int m = 0; 
     while (i < number_of_lists){
         split_list[i] = malloc(sizeof(SortedList_t));
         split_list[i]->prev = split_list[i];
@@ -136,7 +139,21 @@ void create_split_list(){
             printf("Created lock for list:\t%d\n",l);
             pthread_mutex_init(m_lock_arr+l, NULL);
             l++; 
-            printf ("created a lock\n"); 
+            printf ("created a spinlock lock\n"); 
+        }
+    }
+
+    if (spinlock_flag== true){
+        printf ("this is a spinlock case\n");
+        s_lock_arr = (int *)calloc(number_of_lists, sizeof(int));
+        printf ("before loop m is: %d, number of lists is %d \n", m, number_of_lists); 
+
+        while (m < number_of_lists){
+            printf ("m is: %d, number of lists is %d \n", m, number_of_lists); 
+            s_lock_arr[m]= 0;
+            printf ("created a spin lock for list %d\n", m); 
+            m++; 
+
         }
     }
     
@@ -260,20 +277,20 @@ void set_spinlock_lock(int t_ID){
     long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
 
-    //printf ("spinlock case \n"); 
-    while (__sync_lock_test_and_set(&s_lock, 1));
-        printf( "t ID in spinlock is: %d\n", t_ID); 
+    printf ("spinlock case \n"); 
+    while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
+        printf( "t_ID in spinlock is: %d\n", t_ID); 
         do_computation_insert(t_ID); 
-    __sync_lock_release(&s_lock);
+    __sync_lock_release(&s_lock_arr[t_ID]);
 
     while (__sync_lock_test_and_set(&s_lock, 1));
          ll_len = check_list_len(); 
          printf ("linked_l length is now: %d\n", ll_len); 
-    __sync_lock_release(&s_lock);
+    __sync_lock_release(&s_lock_arr[t_ID]);
 
-    while (__sync_lock_test_and_set(&s_lock, 1));
+    while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
          do_computation_lookup_to_delete(t_ID); 
-    __sync_lock_release(&s_lock);
+    __sync_lock_release(&s_lock_arr[t_ID]);
 
     clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
     compute_time_difference(thread_start_time, thread_end_time); 
@@ -281,7 +298,6 @@ void set_spinlock_lock(int t_ID){
 
 void set_mutex_lock(int t_ID){
     int mutex_ret_val;
-    int ll_len; 
     struct timespec thread_start_time; 
     struct timespec thread_end_time;
     long thread_comp_time; 
@@ -302,7 +318,9 @@ void set_mutex_lock(int t_ID){
     if (mutex_ret_val == -1) {
         printf ("could not set mutex lock \n"); 
     }
-    ll_len = check_list_len(); 
+    int ll_len; 
+    ll_len = check_list_len();
+    printf ("ll_len after insert is: %d\n", ll_len);  
     
     pthread_mutex_unlock(m_lock_arr+t_ID);  
 
@@ -366,8 +384,13 @@ void  do_computation_lookup_to_delete (int t_ID) {
         hash_num = naive_hasher (find_me->key); 
         printf("hashnum is: %d\n", hash_num);  
         found_element = SortedList_lookup (split_list[hash_num], find_me->key); 
-        printf ("about to delte \n");
-        do_computation_delete (found_element, t_ID); 
+        if (found_element!= NULL){
+            printf ("about to delte \n");
+            do_computation_delete (found_element, t_ID); 
+        }
+        else {
+            printf ("cant find this element to delete \n"); 
+        }
         temp_thread_ID++;  
     }
         
@@ -387,14 +410,17 @@ void *linked_l_handler(void *vargp) {
     int t_ID = *((int *) vargp);
     printf ("t_id is: %d\n", t_ID);  
     if (mutex_flag == true){
+        printf ("this is the mutex option \n"); 
         set_mutex_lock(t_ID);
     }
 
     else if (spinlock_flag == true){
+        printf ("this is the spinlock option \n"); 
         set_spinlock_lock(t_ID);
     }
 
     else {
+        printf ("this is the regular option \n"); 
         do_computation_insert(t_ID); 
         ll_len = check_list_len(); 
         do_computation_lookup_to_delete(t_ID);
@@ -429,9 +455,16 @@ void set_flags(char* optarg){
 
 int check_list_len() {
     int i = 0; 
-    int acc; 
+    int acc =0; 
+    int temp; 
     while (i < number_of_lists){
-        acc = acc + SortedList_length(split_list[i]);    
+        temp = SortedList_length(split_list[i]);  
+        printf ("i is %d, numver of lists is %d, temp is %d \n", i, number_of_lists, temp); 
+  
+        if (temp == -1) {
+            printf ("error with counting length\n");
+        }
+        acc = acc + temp; 
         i++;
     }
     return acc; 
@@ -490,7 +523,6 @@ int main (int argc, char **argv) {
                         pos_counter++; 
                     }
                 }
-
                 break;
             case '?':
                 fprintf (stderr, "bogus args \n");
