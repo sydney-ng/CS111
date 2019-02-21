@@ -115,7 +115,7 @@ void do_computation_insert(int t_ID) {
             pthread_mutex_lock(&m_lock_arr[hash_num]);
         }
         else if (spinlock_flag == true){
-            printf ("   going to set the lock for INSERT %d for TID:%d \n", hash_num, t_ID);
+            //printf ("   going to set the lock for INSERT %d for TID:%d \n", hash_num, t_ID);
 
             while (__sync_lock_test_and_set(&s_lock_arr[hash_num], 1));
         }
@@ -126,7 +126,7 @@ void do_computation_insert(int t_ID) {
         }
         else if (spinlock_flag == true){
             __sync_lock_release(&s_lock_arr[hash_num]);
-            printf ("   releasing the lock for INSERT %d  for TID:%d \n", hash_num, t_ID);
+            //printf ("   releasing the lock for INSERT %d  for TID:%d \n", hash_num, t_ID);
 
         }
     }
@@ -136,7 +136,7 @@ void create_split_list(){
     //create the heads
     //printf ("got into split list fx\n"); 
     split_list = malloc(number_of_lists * sizeof(SortedList_t*));
-    printf ("there are %d lists\n", number_of_lists); 
+    //printf ("there are %d lists\n", number_of_lists); 
     int i = 0;
     int l = 0; 
     int m = 0; 
@@ -166,7 +166,7 @@ void create_split_list(){
         while (m < number_of_lists){
             //printf ("m is: %d, number of lists is %d \n", m, number_of_lists); 
             s_lock_arr[m]= 0;
-            printf ("created a spin lock for list %d\n", m); 
+            //printf ("created a spin lock for list %d\n", m); 
             m++; 
 
         }
@@ -300,11 +300,11 @@ void set_spinlock_lock(int t_ID){
     //printf ("       unlock insert for tid: %d \n", t_ID); 
     //__sync_lock_release(&s_lock_arr[t_ID]);
 
-    printf ("           lock length for tid: %d \n", t_ID); 
+    //printf ("           lock length for tid: %d \n", t_ID); 
     //while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
         int ll_len; 
         ll_len = check_list_len();
-    printf ("THE LENGTH OF LIST AFTER INSERT IS : %d \n", ll_len); 
+    //printf ("THE LENGTH OF LIST AFTER INSERT IS : %d \n", ll_len); 
 
     //    printf ("       unlock length for tid: %d \n", t_ID); 
     //__sync_lock_release(&s_lock_arr[t_ID]);
@@ -315,7 +315,7 @@ void set_spinlock_lock(int t_ID){
     //printf ("               unlock lookup/delete for tid: %d \n", t_ID); 
     //__sync_lock_release(&s_lock_arr[t_ID]);
 
-    printf ("finished spinlock case for t_ID: %d \n\n", t_ID); 
+    //printf ("finished spinlock case for t_ID: %d \n\n", t_ID); 
     /*int i; 
     for (i = 0; i < number_of_lists; i ++){
         __sync_lock_release(&s_lock_arr[i]);
@@ -422,13 +422,13 @@ void  do_computation_lookup_to_delete (int t_ID) {
             pthread_mutex_lock(&m_lock_arr[hash_num]);
         }
         else if (spinlock_flag == true){
-            printf ("going to set the lock for lookup to delete of %d \n", hash_num);
+            //printf ("going to set the lock for lookup to delete of %d \n", hash_num);
             while (__sync_lock_test_and_set(&s_lock_arr[hash_num], 1));
         }
 
         found_element = SortedList_lookup (split_list[hash_num], original_list[temp_thread_ID]->key); 
         if (found_element!= NULL){
-            printf (" you found a match!!!!!! about to delte \n");
+            //printf (" you found a match!!!!!! about to delte \n");
             do_computation_delete (found_element, t_ID); 
             //printf ("DELETED ONE\n"); 
         }
@@ -440,7 +440,7 @@ void  do_computation_lookup_to_delete (int t_ID) {
             pthread_mutex_unlock(&m_lock_arr[hash_num]);  
         }
         else if (spinlock_flag == true){
-            printf ("released lock for lookup to delete of %d \n", hash_num);
+            //printf ("released lock for lookup to delete of %d \n", hash_num);
             __sync_lock_release(&s_lock_arr[hash_num]);
         }
     }
@@ -600,7 +600,7 @@ int main (int argc, char **argv) {
         //printf ("before, thread num we are passing in is is: %d\n", i); 
         pthread_create(&add_thread[i], NULL, linked_l_handler, (void*) (thread_arr+i));
     }
-    printf ("finished pthread create\n"); 
+    //printf ("finished pthread create\n"); 
 
     for (i =0; i < num_threads; i++){
         if (pthread_join(add_thread[i], NULL) < 0){
