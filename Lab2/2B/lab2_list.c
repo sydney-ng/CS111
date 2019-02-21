@@ -127,7 +127,6 @@ void do_computation_insert(int t_ID) {
         else if (spinlock_flag == true){
             __sync_lock_release(&s_lock_arr[hash_num]);
             //printf ("   releasing the lock for INSERT %d  for TID:%d \n", hash_num, t_ID);
-
         }
     }
 }
@@ -286,7 +285,7 @@ void createList(){
 void set_spinlock_lock(int t_ID){
     int spinlock_ret_val; 
 
-    printf ("in spinlock fx for ID: %d\n", t_ID); 
+    //printf ("in spinlock fx for ID: %d\n", t_ID); 
 
     struct timespec thread_start_time; 
     struct timespec thread_end_time;
