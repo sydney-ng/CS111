@@ -121,7 +121,7 @@ plot \
 	"< grep 'list-none-m,4,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,8,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,12,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
-	"< grep 'list-none-m,1,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title 'mutex' with linespoints lc rgb 'red', \
+	"< grep 'list-none-m,1,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,2,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,4,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,8,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
@@ -137,7 +137,7 @@ plot \
 	"< grep 'list-none-m,8,1000,16' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-m,12,1000,16' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 
-set title "List-5: Throughput vs. number of threads for mutex synchronized partitioned lists"
+set title "List-5: Throughput vs. number of threads for spinlock synchronized partitioned lists"
 set xlabel "Throughput"
 set logscale x 2
 set ylabel "number of threads for mutex synchronized partitioned lists"
@@ -147,12 +147,12 @@ set output 'lab2b_5.png'
 # throughput = $2 
 # number of threads = $3
 plot \
-	"< grep 'list-none-s,1,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title 'mutex' with linespoints lc rgb 'red', \
+	"< grep 'list-none-s,1,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title 'spinlock' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,2,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,4,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,8,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,12,1000,1' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
-	"< grep 'list-none-s,1,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title 'mutex' with linespoints lc rgb 'red', \
+	"< grep 'list-none-s,1,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,2,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,4,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \
 	"< grep 'list-none-s,8,1000,4' lab2b_list.csv" using ($2):(1000000000/($7)) title '' with linespoints lc rgb 'red', \

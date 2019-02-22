@@ -515,6 +515,7 @@ int check_list_len() {
   
         if (temp == -1) {
             printf ("error with counting length\n");
+            exit (2);
         }
         acc = acc + temp; 
         i++;

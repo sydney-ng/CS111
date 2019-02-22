@@ -18,22 +18,24 @@
 #include "SortedList.h"
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
+    SortedList_t *element_iterator = list->next;
+
     if (opt_yield & INSERT_YIELD) {
         sched_yield();
     }
-
-    SortedListElement_t *element_iterator = list->next;
-
     while (element_iterator != list) {
         if (strcmp(element_iterator->key,element->key) >= 0) {
-            element->prev = element_iterator->prev;
+             element->prev = element_iterator->prev;
             element->next = element_iterator;
             element_iterator->prev->next = element;
             element_iterator->prev = element;
-            break; 
+            return;  
         }
-        element_iterator = element_iterator->next;
+        else {
+            element_iterator = element_iterator->next;
+        }
     }
+   
 }
 
 int SortedList_delete( SortedListElement_t *element) {
