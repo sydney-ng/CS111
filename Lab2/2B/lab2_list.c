@@ -17,6 +17,7 @@
 #include <sched.h>
 #include "SortedList.h"
 
+int m_exit = 0;
 long thread_timer[1000]; 
 int thread_timer_counter = 0; 
 long avg_thread_time = 0; 
@@ -395,7 +396,8 @@ void do_computation_delete(SortedListElement_t *found_element, int t_ID) {
     int del_res; 
     del_res = SortedList_delete (found_element); 
     if (del_res == 1){
-        printf ("could not delete the node\n");
+        fprintf (stderr, "could not delete the node\n");
+        m_exit = 2; 
     }
     /////////////////////////////////////////////
     /*if (mutex_flag == true){
@@ -431,9 +433,9 @@ void  do_computation_lookup_to_delete (int t_ID) {
             do_computation_delete (found_element, t_ID); 
             //printf ("DELETED ONE\n"); 
         }
-        else {
-            printf ("can't delete\n");
-        }
+        /*else {
+            m_exit = 2;
+        }*/
                 
         if (mutex_flag == true){
             pthread_mutex_unlock(&m_lock_arr[hash_num]);  
@@ -521,6 +523,12 @@ int check_list_len() {
     return acc; 
 } 
 
+void sigHandler (int optarg) {
+    fprintf (stderr, "%d caught \n", optarg); 
+    fflush(stderr); 
+
+    exit (optarg); 
+}
 
 int main (int argc, char **argv) {
     int c; 
@@ -585,6 +593,7 @@ int main (int argc, char **argv) {
         }
     }
   
+    signal(SIGSEGV, sigHandler); 
     createList();
     create_split_list(); 
     clock_gettime(CLOCK_MONOTONIC, &start_time); 
@@ -603,7 +612,7 @@ int main (int argc, char **argv) {
 
     for (i =0; i < num_threads; i++){
         if (pthread_join(add_thread[i], NULL) < 0){
-            printf ("problem joining\n"); 
+            fprintf (stderr, "problem joining\n"); 
             }
 
     }
@@ -615,6 +624,6 @@ int main (int argc, char **argv) {
     }
     //printf ("made it to the end\n"); 
     printdata(); 
-    exit (0);
+    exit (m_exit);
     
 }
