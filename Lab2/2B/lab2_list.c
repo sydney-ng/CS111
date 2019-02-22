@@ -397,7 +397,6 @@ void do_computation_delete(SortedListElement_t *found_element, int t_ID) {
     del_res = SortedList_delete (found_element); 
     if (del_res == 1){
         fprintf (stderr, "could not delete the node\n");
-        m_exit = 2; 
     }
     /////////////////////////////////////////////
     /*if (mutex_flag == true){
