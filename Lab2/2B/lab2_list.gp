@@ -102,10 +102,34 @@ set output 'lab2b_3.png'
 # throughput = $2 
 # number of threads = $3
 plot \
-	"< grep 'list-id-none' lab2b_list.csv" using ($2):($3) title 'no sync' with linespoints lc rgb 'red', \
-	"< grep 'list-id-s' lab2b_list.csv" using ($2):($3) title 'spinlock' with linespoints lc rgb 'green', \
-	"< grep 'list-id-m' lab2b_list.csv" using ($2):($3) title 'mutex' with linespoints lc rgb 'blue' \
-	 
+	"< grep 'list-id-none,1,1' lab2b_list.csv" using ($2):($3) title 'no sync' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,1,1' lab2b_list.csv" using ($2):($3) title 'spinlock' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,1,1' lab2b_list.csv" using ($2):($3) title 'mutex' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-s,4,1' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,12,1' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,1,2' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,1,2' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,1,2' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,4,2' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-m,4,2' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-s,1,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,1,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,4,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,4,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,4,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,1,8' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,16,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,16,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,16,8' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,16,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,16,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,16,4' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,8,40' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,8,10' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+	"< grep 'list-id-none,8,16' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'red', \
+	"< grep 'list-id-s,8,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'green', \
+	"< grep 'list-id-m,8,80' lab2b_list.csv" using ($2):($3) title '' with linespoints lc rgb 'blue', \
+
 set title "List-4: Throughput vs. number of threads for mutex synchronized partitioned lists"
 set xlabel "Throughput"
 set logscale x 2
