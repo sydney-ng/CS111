@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include "ext2_fs.h"
 
 //Global Variables
@@ -21,10 +22,17 @@ struct ext2_group_desc G;
 int block_numof_first_inode_block;
 int GLOBAL_inode_offset;
 /* based on documentation by IBM: https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/apis/pread.htm */
+
+// functions:
 void setup(char **argv);
 void superblock();
 void group();
 void free_entries(int bitmap, char type);
+void inode_summary ();
+void get_time(struct ext2_inode inode, char type);
+void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mode, int inode_linkcount);
+unsigned createMask(unsigned x, unsigned y);
+void filedirectory_handler(struct ext2_inode inode);
 
 int main (int argc, char **argv) {
     setup(argv);
@@ -32,7 +40,7 @@ int main (int argc, char **argv) {
     group();
     free_entries(block_bitmap, 'b');
     free_entries(inode_bitmap, 'i');
-
+    inode_summary();
 }
 
 void superblock(){
@@ -97,52 +105,104 @@ void free_entries(int bitmap, char type){
     }
 }
 
-void free_inode_entries() {
-// same as free_block_entries but with inode as the start one
+/* based on time: https://stackoverflow.com/questions/761791/converting-between-local-times-and-gmt-utc-in-c-c */
+//TODO: convert this to string to send back to parent
+void get_time(struct ext2_inode inode, char type) {
+    char time_return_val[25];
+    time_t actual_time;
+    if (type == 'c'){
+        actual_time = inode.i_ctime;
+    }
+    else if (type == 'm'){
+        actual_time = inode.i_mtime;
+    }
+    else { // for access time
+        actual_time = inode.i_ctime;
+    }
+    
+    struct tm* converted_time = gmtime(&actual_time);
+    strftime(time_return_val, 25, "%m/%d/%y %H:%M:%S", converted_time);
+    printf ("%s,", time_return_val);
+}
+
+void inode_summary(){
+    int i;
+    int offset = block_numof_first_inode_block * block_size;
+    struct ext2_inode inode;
+    
+    for (i = 0; i < num_inodes; i++){
+        pread (FD, &inode, sizeof(inode), offset + (inode_size *i));
+        //check if this is a valid inode
+        if (inode.i_mode && inode.i_links_count){
+            //inodes start @ 1 but our iterator starts at 0
+            handle_valid_inode(inode, i+1, inode.i_mode,inode.i_links_count);
+        }
+       
+        
+    }
 }
 
 /* What we need:
- INODE
- inode number (decimal)
- ----- file type ('f' for file, 'd' for directory, 's' for symbolic link, '?" for anything else)
- mode (low order 12-bits, octal ... suggested format "%o")
- owner (decimal)
- group (decimal)
- link count (decimal)
- time of last I-node change (mm/dd/yy hh:mm:ss, GMT)
- modification time (mm/dd/yy hh:mm:ss, GMT)
- time of last access (mm/dd/yy hh:mm:ss, GMT)
- file size (decimal)
- number of (512 byte) blocks of disk space (decimal) taken up by this file
+ 1 INODE
+ 2 inode number (decimal)
+ 3 ----- file type ('f' for file, 'd' for directory, 's' for symbolic link, '?" for anything else)
+ 4 mode (low order 12-bits, octal ... suggested format "%o")
+ 5 owner (decimal)
+ 6 group (decimal)
+ 7 link count (decimal)
+ 8 time of last I-node change (mm/dd/yy hh:mm:ss, GMT)
+ 9 modification time (mm/dd/yy hh:mm:ss, GMT)
+ 10 time of last access (mm/dd/yy hh:mm:ss, GMT)
+ 11 file size (decimal)
+ 12 number of (512 byte) blocks of disk space (decimal) taken up by this file
  */
 
-/*void inode_summary(){
-    GLOBAL_inode_offset = 0;
-    struct ext2_inode inode;
-    //char buf[num_inodes * inode_size];     // max = # of inodes * inode size
+void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mode, int inode_linkcount) {
+    //extract easy stuff from inode
+    char data_type = '?';
+    int owner = inode.i_uid;
+    int group = inode.i_gid;
+    int file_size = inode.i_size;
+    int block_size = inode.i_blocks;
+    //get_time(inode, 'c');
+    //get_time(inode, 'm');
+    //get_time(inode, 'a');
     
-    for (i =0; i < num_inodes; i++){
+    printf ("INODE,%d,", inode_number); // #1, #2
+    if (S_IFDIR & inode.i_mode){
+        data_type = 'd';
+    }
+    else if (S_IFREG & inode.i_mode){
+        data_type = 'f';
+    }
+    else if (S_IFLNK & inode.i_mode){
+        data_type = 's';
+    }
+    else {
+    }
+    int mask;
+    printf ("%c,%o,%d,%d,%d,", data_type, (inode.i_mode & 0x0FFF), owner, group, inode_linkcount); //#3-7
+    get_time(inode, 'c'); // #8
+    get_time(inode, 'm'); // #9
+    get_time(inode, 'a'); // #10
+    printf ("%d,%d", file_size, block_size); // #11-12
+    
+    if (data_type != '?'){
+        filedirectory_handler(inode);
+    }
+    printf ("\n");
+}
+
+void filedirectory_handler(struct ext2_inode inode){
+    char temp_str [15];
+    int i;
+    for (i=0; i < 14; i++){
+        printf (",%d", inode.i_block[i]);
+    }
+}
+
+        /*
         
-        int offset = block_numof_first_inode_block * block_size;
-        int i;
-        char mod_time[8];
-        char last_access_time[8];
-        //int inode_mode = inode.i_mode;
-        int owner = inode.i_uid;
-        int group = inode.igid;
-        int link_count = inode.i_links_count;
-        struct tm * time_info_create = inode.i_ctime;
-        strftime(timeString, 8, "%H:%M:%S", time_info_create);
-        struct tm * time_info_mod = inode.m_mtime;
-        strftime(timeString, 8, "%H:%M:%S", time_info_mod);
-        struct tm * time_info_access = inode.i_atime;
-        strftime(last_access_time, 8, "%H:%M:%S", time_info_access);
-        int file_size = inode.i_size;
-        int block_size = inode.i_blocks;
-        
-        pread (FD, &inode, sizeof(inode), offset + (inode_size *i));
-        inode_num = i +1;
-        char mode_type = '?';
         if (S_IFDIR & inode.i_mode){
             mode_type = 'd';
             printf ("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i, file_type, mode_type, owner, group, link_count, time_info_create, time_info_mod, time_info_access, file_size, block_size);
@@ -168,16 +228,7 @@ void free_inode_entries() {
         //extract the information using ext2_inode from header file
 }
 
-char * filedirectory_handler(struct ext2_inode inode){
-    char temp_str [15];
-    int i = 0;
-    printf ("DIRENT,");
-    for (i; i < 14; i++){
-        printf ("%d,", inode.i_blocks[i])
-    }
-    printf ("\n");
-}
-    
+ 
 void handle_directory_entries(int parent_inode){
     struct ext2_dir_entry dir;
     int dir_len = dir.rec_len;
