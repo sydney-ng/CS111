@@ -188,7 +188,9 @@ void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mod
     printf ("%d,%d", file_size, block_size); // #11-12
     
     if (data_type != '?'){
-        filedirectory_handler(inode);
+        if ((data_type == 's' && file_size <= 60) || data_type != 's'){
+            filedirectory_handler(inode);
+        }
     }
     printf ("\n");
 }
