@@ -24,13 +24,15 @@ int GLOBAL_inode_offset;
 void setup(char **argv);
 void superblock();
 void group();
-void free_block_entries();
+void free_entries(int bitmap, char type);
 
 int main (int argc, char **argv) {
     setup(argv);
     superblock();
     group();
-    free_block_entries();
+    free_entries(block_bitmap, 'b');
+    free_entries(inode_bitmap, 'i');
+
 }
 
 void superblock(){
@@ -68,12 +70,12 @@ void group(){
     printf ("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", group_number, num_blocks, inodes_in_group, free_blocks_in_group,free_inodes_in_group, block_bitmap, inode_bitmap, block_numof_first_inode_block);
 }
 
-void free_block_entries(){
+void free_entries(int bitmap, char type){
     int byte_iter; //iterate through byte (vertical)
     int bit_iter; //iterate through bit (horizontal)
     int curr_num = 0;
     char buf[block_size];
-    off_t off = block_size * block_bitmap;
+    off_t off = block_size * bitmap;
     
     //read entire bitmap into buffer
     pread(FD, buf, 1024, off);
@@ -82,10 +84,15 @@ void free_block_entries(){
     for (byte_iter = 0; byte_iter < num_blocks; byte_iter++) {
         char curr_byte = buf[byte_iter];
         for (bit_iter = 0; bit_iter < 8; bit_iter++) {
-            if ((curr_byte & (1<< bit_iter)) == 0) {
-                printf("BFREE,%u\n", curr_num);
-            }
             curr_num++;
+            if ((curr_byte & (1<< bit_iter)) == 0) {
+                if (type == 'b'){
+                    printf("BFREE,%u\n", curr_num);
+                }
+                else {
+                    printf("IFREE,%u\n", curr_num);
+                }
+            }
         }
     }
 }
