@@ -20,7 +20,7 @@ int inode_bitmap;
 int block_bitmap;
 struct ext2_group_desc G;
 int block_numof_first_inode_block;
-int GLOBAL_inode_offset;
+int GLOBAL_directory_offset = 0;
 /* based on documentation by IBM: https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/apis/pread.htm */
 
 // functions:
@@ -32,7 +32,9 @@ void inode_summary ();
 void get_time(struct ext2_inode inode, char type);
 void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mode, int inode_linkcount);
 unsigned createMask(unsigned x, unsigned y);
-void filedirectory_handler(struct ext2_inode inode);
+void filedirectory_handler(struct ext2_inode inode, char data_type, int parent_inode);
+char determine_filetype (struct ext2_inode inode);
+void handle_directory_entries(int parent_inode, int current_block);
 
 int main (int argc, char **argv) {
     setup(argv);
@@ -137,8 +139,6 @@ void inode_summary(){
             //inodes start @ 1 but our iterator starts at 0
             handle_valid_inode(inode, i+1, inode.i_mode,inode.i_links_count);
         }
-       
-        
     }
 }
 
@@ -159,16 +159,30 @@ void inode_summary(){
 
 void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mode, int inode_linkcount) {
     //extract easy stuff from inode
-    char data_type = '?';
+    char data_type;
     int owner = inode.i_uid;
     int group = inode.i_gid;
     int file_size = inode.i_size;
     int block_size = inode.i_blocks;
-    //get_time(inode, 'c');
-    //get_time(inode, 'm');
-    //get_time(inode, 'a');
     
+    data_type = determine_filetype (inode);
     printf ("INODE,%d,", inode_number); // #1, #2
+    printf ("%c,%o,%d,%d,%d,", data_type, (inode.i_mode & 0x0FFF), owner, group, inode_linkcount); //#3-7
+    get_time(inode, 'c'); // #8
+    get_time(inode, 'm'); // #9
+    get_time(inode, 'a'); // #10
+    printf ("%d,%d", file_size, block_size); // #11-12
+    
+    if (data_type != '?'){
+        if ((data_type == 's' && file_size <= 60) || data_type != 's'){
+            filedirectory_handler(inode, data_type, inode_number);
+        }
+    }
+    printf ("\n");
+}
+
+char determine_filetype (struct ext2_inode inode){
+    char data_type = '?';
     if (S_IFDIR & inode.i_mode){
         data_type = 'd';
     }
@@ -178,67 +192,43 @@ void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mod
     else if (S_IFLNK & inode.i_mode){
         data_type = 's';
     }
-    else {
-    }
-    int mask;
-    printf ("%c,%o,%d,%d,%d,", data_type, (inode.i_mode & 0x0FFF), owner, group, inode_linkcount); //#3-7
-    get_time(inode, 'c'); // #8
-    get_time(inode, 'm'); // #9
-    get_time(inode, 'a'); // #10
-    printf ("%d,%d", file_size, block_size); // #11-12
-    
-    if (data_type != '?'){
-        if ((data_type == 's' && file_size <= 60) || data_type != 's'){
-            filedirectory_handler(inode);
-        }
-    }
-    printf ("\n");
+    return data_type;
 }
-
-void filedirectory_handler(struct ext2_inode inode){
+void filedirectory_handler(struct ext2_inode inode, char data_type, int parent_inode){
     char temp_str [15];
     int i;
-    for (i=0; i < 14; i++){
+    for (i=0; i < 15; i++){
+        if (i < 12 && inode.i_block[i] == 0){ // check to make sure it's bein used
+            handle_directory_entries(parent_inode, i+1);
+        }
         printf (",%d", inode.i_block[i]);
     }
 }
+/*
+ 1. DIRENT
+ 2. parent inode number (decimal) ... the I-node number of the directory that contains this entry
+ 3. logical byte offset (decimal) of this entry within the directory
+ 4. inode number of the referenced file (decimal)
+ 5. entry length (decimal)
+ 6. name length (decimal)
+ 7. name (string, surrounded by single-quotes). Don't worry about escaping, we promise there will be no single-quotes or commas in any of the file names. */
 
-        /*
-        
-        if (S_IFDIR & inode.i_mode){
-            mode_type = 'd';
-            printf ("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i, file_type, mode_type, owner, group, link_count, time_info_create, time_info_mod, time_info_access, file_size, block_size);
-            filedirectory_handler(struct ext2_inode inode);
-        }
-        else if (S_IFREG & inode.i_mode){
-            mode_type = 'f';
-            printf ("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i, file_type, mode_type, owner, group, link_count, time_info_create, time_info_mod, time_info_access, file_size, block_size);
-            filedirectory_handler(struct ext2_inode inode);
-        }
-        else if (S_IFLNK & inode.i_mode){
-            mode_type = 's';
-            if (file_size <= 60){
-                filedirectory_handler(struct ext2_inode inode);
-            }
-        }
-        else {
-            printf ("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i, file_type, mode_type, owner, group, link_count, time_info_create, time_info_mod, time_info_access, file_size, block_size);
-        }
+void handle_directory_entries(int parent_inode, int current_block){
+    struct ext2_dir_entry D;
+    int dir_i = 0;
+    int block_iter;
+    int dir_len;
+    int entry_len = -1;
+    int name_len = -1;
+    //iterate from current block -> blocksize, incrementing from length of directory
+    for (block_iter = 0; block_iter < EXT2_NDIR_BLOCKS; block_iter += dir_len){
+        //pread that block (offset = current_block * BLOCK_SIZE + off, & extract the information
+        pread (FD, &D, sizeof(D), current_block * block_size + GLOBAL_directory_offset);
+        dir_len = D.rec_len;
+        entry_len = D.rec_len;
+        name_len = D.name_len;
+        printf ("DIRENT,%d,%d,%d,%d,%d,%s\n", parent_inode, GLOBAL_directory_offset, current_block,entry_len, name_len, D.name);
+        break;
     }
-    // 1 - 12 are direct
-    // 13- 268 -> follow the pointer and then iterate til 255
-        //extract the information using ext2_inode from header file
+    GLOBAL_directory_offset += dir_len;
 }
-
- 
-void handle_directory_entries(int parent_inode){
-    struct ext2_dir_entry dir;
-    int dir_len = dir.rec_len;
-    int i;
-    for (i; i < (num_blocks + 1) * block_size i; i += dir_len) {
-        pread(fs_fd, &dir_entry, sizeof(struct ext2_dir_entry), num_blocks * block_size);
-        }
-    printf ("DIRENT", dir.parent_inode, dir_len, dir.name_len, dir.name,)
-}
-    
-*/
