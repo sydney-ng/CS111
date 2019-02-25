@@ -35,6 +35,7 @@ unsigned createMask(unsigned x, unsigned y);
 void filedirectory_handler(struct ext2_inode inode, char data_type, int parent_inode);
 char determine_filetype (struct ext2_inode inode);
 void handle_directory_entries(int parent_inode, int current_block);
+void pre_directory_handler(struct ext2_inode inode, int inode_number);
 
 int main (int argc, char **argv) {
     setup(argv);
@@ -178,7 +179,51 @@ void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mod
             filedirectory_handler(inode, data_type, inode_number);
         }
     }
+    
+    if (data_type == 'd'){
+        pre_directory_handler(inode, inode_number);
+    }
     printf ("\n");
+}
+
+
+void pre_directory_handler(struct ext2_inode inode, int inode_number){
+    int i;
+    for (i = 0; i < 12; i++){
+        if (inode.i_block[i] == 0){ // check to make sure it's bein used
+            handle_directory_entries(inode_number, i); //inode_number is the parent entry
+        }
+    }
+}
+
+/*
+ 1. DIRENT
+ 2. parent inode number (decimal) ... the I-node number of the directory that contains this entry
+ 3. logical byte offset (decimal) of this entry within the directory
+ 4. inode number of the referenced file (decimal)
+ 5. entry length (decimal)
+ 6. name length (decimal)
+ 7. name (string, surrounded by single-quotes). Don't worry about escaping, we promise there will be no single-quotes or commas in any of the file names. */
+
+void handle_directory_entries(int parent_inode, int current_block){
+    struct ext2_dir_entry D;
+    int dir_i = 0;
+    int block_iter;
+    int dir_len;
+    int entry_len = 0;
+    int name_len = 0;
+    char buf[block_size];
+    
+    //iterate from current block -> blocksize, incrementing from length of directory
+    for (block_iter = 0; block_iter < EXT2_NDIR_BLOCKS; block_iter += entry_len){
+        //pread that block (offset = current_block * BLOCK_SIZE + off, & extract the information
+        pread (FD, &D, sizeof(D), current_block * block_size + block_iter);
+        entry_len = D.rec_len;
+        name_len = D.name_len;
+        printf ("global directory offset is :%d\n", block_size * current_block);
+        printf ("DIRENT,%d,%d,%d,%d,%d,%s\n", parent_inode, GLOBAL_directory_offset, current_block,entry_len, name_len, D.name);
+        break;
+    }
 }
 
 char determine_filetype (struct ext2_inode inode){
@@ -194,41 +239,11 @@ char determine_filetype (struct ext2_inode inode){
     }
     return data_type;
 }
+
 void filedirectory_handler(struct ext2_inode inode, char data_type, int parent_inode){
     char temp_str [15];
     int i;
     for (i=0; i < 15; i++){
-        if (i < 12 && inode.i_block[i] == 0){ // check to make sure it's bein used
-            handle_directory_entries(parent_inode, i+1);
-        }
         printf (",%d", inode.i_block[i]);
     }
-}
-/*
- 1. DIRENT
- 2. parent inode number (decimal) ... the I-node number of the directory that contains this entry
- 3. logical byte offset (decimal) of this entry within the directory
- 4. inode number of the referenced file (decimal)
- 5. entry length (decimal)
- 6. name length (decimal)
- 7. name (string, surrounded by single-quotes). Don't worry about escaping, we promise there will be no single-quotes or commas in any of the file names. */
-
-void handle_directory_entries(int parent_inode, int current_block){
-    struct ext2_dir_entry D;
-    int dir_i = 0;
-    int block_iter;
-    int dir_len;
-    int entry_len = -1;
-    int name_len = -1;
-    //iterate from current block -> blocksize, incrementing from length of directory
-    for (block_iter = 0; block_iter < EXT2_NDIR_BLOCKS; block_iter += dir_len){
-        //pread that block (offset = current_block * BLOCK_SIZE + off, & extract the information
-        pread (FD, &D, sizeof(D), current_block * block_size + GLOBAL_directory_offset);
-        dir_len = D.rec_len;
-        entry_len = D.rec_len;
-        name_len = D.name_len;
-        printf ("DIRENT,%d,%d,%d,%d,%d,%s\n", parent_inode, GLOBAL_directory_offset, current_block,entry_len, name_len, D.name);
-        break;
-    }
-    GLOBAL_directory_offset += dir_len;
 }
