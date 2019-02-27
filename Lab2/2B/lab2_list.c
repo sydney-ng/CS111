@@ -55,7 +55,7 @@ void *linked_l_handler(void *vargp);
 void createList(); 
 void printdata();
 void format_flags();
-void do_computation_insert(int t_ID);  
+void do_computation_insert(int t_ID, struct timespec thread_start_time); 
 void  do_computation_lookup_to_delete(int t_ID);
 void do_computation_delete(SortedListElement_t *found_element, int t_ID); 
 int check_list_len();
@@ -92,10 +92,13 @@ int naive_hasher(const unsigned char *str)
     return (acc % number_of_lists);
 }
 
-void do_computation_insert(int t_ID) {
+void do_computation_insert(int t_ID, struct timespec thread_start_time) {
     int hash_num;
+    struct timespec thread_end_time;
+    long thread_comp_time; 
     //printf ("HERE in thread number %d \n", t_ID); 
     int i;
+    volatile int flag = 1; 
     //printf ("\n in computation_insert, lets check original_list: \n"); 
     
     /*int counter =0; 
@@ -113,12 +116,22 @@ void do_computation_insert(int t_ID) {
         //printf ("hashz num is: %d\n", hash_num); 
         //printf ("before insertion\n"); 
         if (mutex_flag == true){
-            pthread_mutex_lock(&m_lock_arr[hash_num]);
+            if (flag == 1){
+                 pthread_mutex_lock(&m_lock_arr[hash_num]);
+                 clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
+                 flag = 0; 
+                 compute_time_difference(thread_start_time, thread_end_time); 
+            }
+           
         }
         else if (spinlock_flag == true){
             //printf ("   going to set the lock for INSERT %d for TID:%d \n", hash_num, t_ID);
-
             while (__sync_lock_test_and_set(&s_lock_arr[hash_num], 1));
+             if (flag == 1){
+                 clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
+                 flag = 0; 
+                 compute_time_difference(thread_start_time, thread_end_time); 
+            }
         }
         hash_and_insert(temp_thread_ID, hash_num); 
         //printf ("INSERTED \n"); 
@@ -289,14 +302,14 @@ void set_spinlock_lock(int t_ID){
     //printf ("in spinlock fx for ID: %d\n", t_ID); 
 
     struct timespec thread_start_time; 
-    struct timespec thread_end_time;
-    long thread_comp_time; 
+    //struct timespec thread_end_time;
+    //long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
 
     //printf ("       lock insert for tid: %d \n", t_ID); 
     //while (__sync_lock_test_and_set(&s_lock_arr[t_ID], 1));
         //printf( "t_ID in spinlock is: %d\n", t_ID); 
-        do_computation_insert(t_ID); 
+    do_computation_insert(t_ID, thread_start_time); 
     //printf ("       unlock insert for tid: %d \n", t_ID); 
     //__sync_lock_release(&s_lock_arr[t_ID]);
 
@@ -322,15 +335,14 @@ void set_spinlock_lock(int t_ID){
     } */
 
     //printf ("at the end of spinlock function \n");
-    clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
-    compute_time_difference(thread_start_time, thread_end_time); 
+    
 }
 
 void set_mutex_lock(int t_ID){
     int mutex_ret_val;
     struct timespec thread_start_time; 
-    struct timespec thread_end_time;
-    long thread_comp_time; 
+    //struct timespec thread_end_time;
+    //long thread_comp_time; 
     clock_gettime(CLOCK_MONOTONIC, &thread_start_time); 
     //printf ("mutexlock case with tID as %d \n", t_ID); 
     //mutex_ret_val = pthread_mutex_lock(m_lock_arr+t_ID);
@@ -339,7 +351,7 @@ void set_mutex_lock(int t_ID){
     //if (mutex_ret_val == -1) {
     //    printf ("could not set mutex lock \n"); 
     //}
-    do_computation_insert(t_ID); 
+    do_computation_insert(t_ID, thread_start_time); 
     
     //pthread_mutex_unlock(m_lock_arr+t_ID);  
 
@@ -362,8 +374,8 @@ void set_mutex_lock(int t_ID){
     do_computation_lookup_to_delete(t_ID); 
     //pthread_mutex_unlock(m_lock_arr+t_ID); 
 
-    clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
-    compute_time_difference(thread_start_time, thread_end_time); 
+    //clock_gettime(CLOCK_MONOTONIC, &thread_end_time); 
+    //compute_time_difference(thread_start_time, thread_end_time); 
 
    /*int k = 0;
     for (k; k < number_of_lists; k++){
@@ -474,7 +486,8 @@ void *linked_l_handler(void *vargp) {
 
     else {
         //printf ("this is the regular option \n"); 
-        do_computation_insert(t_ID); 
+        struct timespec thread_end_time;
+        do_computation_insert(t_ID, thread_end_time); 
         ll_len = check_list_len(); 
         do_computation_lookup_to_delete(t_ID);
         
@@ -530,7 +543,7 @@ void sigHandler (int optarg) {
     exit (optarg); 
 }
 
-int main (int argc, char **argv) {
+int main (int argc, char **argv) {f
     int c; 
     int i; 
 

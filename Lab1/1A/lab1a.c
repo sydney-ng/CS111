@@ -16,20 +16,32 @@
 int fd_table[100];
 int starting_fd_number = 0;
 static struct option long_options[] = {
-    {"rdwr", required_argument, 0, 'W' },
+    {"rdwr", required_argument, 0, 'B' },
     {"rdonly", required_argument, 0, 'R' },
-    {"wronly", required_argument, 0, 'B' },
+    {"wronly", required_argument, 0, 'W' },
+    {"abort", no_argument, 0, 'A' },
+    {"default", required_argument, 0, 'A' },
+    {"ignore", required_argument, 0, 'I' },
+    {"catch", required_argument, 0, 'N' },
     {"verbose", no_argument, 0, 'V' },
     {"command", no_argument, 0, 'C' },
+    {"trunc", no_argument, 0, -1},
     {0, 0, 0, 0}};
+
 int command_intput_fd = 0; 
 int command_output_fd = 1; 
 int command_error_fd = 2;
 int fd_table_counter = 0;
 bool exit_one = false;  
+bool catch_sig = false; 
+bool default_sig = false; 
+int catch_sig_int = 0; 
+int default_sig_int = 0; 
+bool trunc_flag = false; 
 
 
 int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]);
+void check_verbose_flag (int option_index, char* optarg, bool verbose_flag); 
 
 int parse_command_option (int optind, char **argv, int argc, int fd_table_counter, int fd_table[100]) {
     //printf ("inside parse_command_option \n"); 
@@ -90,7 +102,6 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
                 command_flag ++; 
                 cmd_args[arr_counter] = argv[index_counter]; 
                 arr_counter ++;
-            
             } 
         }// close: else if (command_flag < 4)
         else {
@@ -104,7 +115,10 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
     //command_to_children (command_intput_fd, command_output_fd, command_error_fd, cmd_args);
 }
     cmd_args[arr_counter] = NULL;
-
+    // no command given 
+    if (arr_counter < 1) {
+        fprintf (1, "--command has no commands, error: %s");
+    }
 
     pid_t pid = fork ();
     if (pid < 0) {
@@ -133,11 +147,9 @@ int parse_command_option (int optind, char **argv, int argc, int fd_table_counte
 }
 
                     
-void file_opening_options (char* option_name, bool verbose_flag, int option_index, char* optarg) {
-    if (verbose_flag == true){
-        printf ("--%s %s \n", long_options[option_index].name , optarg); 
-    }
-    int input_fd = open (optarg, O_RDONLY, 0644);
+void file_opening_options (char *option_name, bool verbose_flag, int option_index, char* optarg) {
+    check_verbose_flag (option_index, optarg, verbose_flag); 
+    int input_fd = open (optarg, option_name, 0644);
     if (input_fd == -1 ){
         fprintf (stderr, "Cannot Open the Specified Input File %s \n", optarg);
         exit_one = true; 
@@ -148,6 +160,12 @@ void file_opening_options (char* option_name, bool verbose_flag, int option_inde
     fd_table_counter++;
 }
 
+
+void check_verbose_flag (int option_index, char* optarg, bool verbose_flag){
+    if (verbose_flag == true){
+        printf ("--%s %s \n", long_options[option_index].name , optarg); 
+        }
+}
 int main(int argc, char **argv) {
     int ret, ret2;
     char buf[1024];
@@ -156,7 +174,7 @@ int main(int argc, char **argv) {
     int input_fd; /*
     int output_fd = 1;
     int error_fd = 2; */
-    int tracker = 1; 
+//    int tracker = 1;
     int new_fd; 
     bool verbose_flag = false;
     while (1){
@@ -166,19 +184,40 @@ int main(int argc, char **argv) {
         //bool valid_command = false; 
 
         switch (c){
-            case 'R': {
+            case 'R':
+                check_verbose_flag (option_index, optarg, verbose_flag);
                 file_opening_options (O_RDONLY, verbose_flag, option_index, optarg); 
                 break;  
-            }  
-            case 'B':
+             case 'A':
+                check_verbose_flag (option_index, optarg, verbose_flag); 
+                raise(SIGSEGV); 
+                exit(1); 
+                break;  
+            case 'W':
+                check_verbose_flag (option_index, optarg, verbose_flag);
                 file_opening_options (O_WRONLY, verbose_flag, option_index, optarg); 
                 break; 
-            case 'W':
+            case 'B':
+                check_verbose_flag (option_index, optarg, verbose_flag);
                 file_opening_options (O_RDWR, verbose_flag, option_index, optarg); 
                 break; 
             case 'V':
-                //valid_command = true; 
+                check_verbose_flag (option_index, optarg, verbose_flag);
+                printf ("--%s %s \n", long_options[option_index].name , optarg); 
                 verbose_flag = true; 
+                break; 
+            case 'N':
+                check_verbose_flag (option_index, optarg, verbose_flag); 
+                catch_sig = true; 
+                catch_sig_int = atoi(optarg);
+                break; 
+            case 'I':
+                check_verbose_flag (option_index, optarg, verbose_flag); 
+                catch_sig = false; 
+                break; 
+            case 'D':
+                check_verbose_flag (option_index, optarg, verbose_flag); 
+                default_sig_int = atoi(optarg);
                 break; 
             case 'C': {
                 char v_str[100];
@@ -214,16 +253,23 @@ int main(int argc, char **argv) {
                 break; 
             default: 
                 break; // close case 'C'
-        } // close switch
-       /* if (valid_command == false) {
-            fprintf (stderr, "Invalid Command Passed");
-            exit (1); 
-            }*/
+        } 
         if (c == -1){
             break;
             }      
     }  // close while (1)
     // read and write the files
+
+    //check if we're handling signals 
+    if (catch_sig == true){
+        fprintf (stderr, "Exited with Error %d", catch_sig_int); 
+        exit (catch_sig_int); 
+    }
+    else if (default_sig == true) {
+        signal(default_sig_int, SIG_DFL); 
+
+    }
+
     if (exit_one == true){
         exit(1); 
         }

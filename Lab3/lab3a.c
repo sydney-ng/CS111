@@ -20,7 +20,6 @@ int inode_bitmap;
 int block_bitmap;
 struct ext2_group_desc G;
 int block_numof_first_inode_block;
-int GLOBAL_directory_offset = 0;
 /* based on documentation by IBM: https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/apis/pread.htm */
 
 // functions:
@@ -34,8 +33,8 @@ void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mod
 unsigned createMask(unsigned x, unsigned y);
 void filedirectory_handler(struct ext2_inode inode, char data_type, int parent_inode);
 char determine_filetype (struct ext2_inode inode);
-void handle_directory_entries(int parent_inode, int current_block);
-void pre_directory_handler(struct ext2_inode inode, int inode_number);
+int handle_directory_entries(int parent_inode, int current_block, int file_size, int GLOBAL_directory_offset);
+void pre_directory_handler(struct ext2_inode inode, int inode_number, int file_size);
 
 int main (int argc, char **argv) {
     setup(argv);
@@ -43,7 +42,7 @@ int main (int argc, char **argv) {
     group();
     free_entries(block_bitmap, 'b');
     free_entries(inode_bitmap, 'i');
-    inode_summary();
+    i_blocks();
 }
 
 void superblock(){
@@ -181,17 +180,17 @@ void handle_valid_inode(struct ext2_inode inode, int inode_number, int inode_mod
     }
     
     if (data_type == 'd'){
-        pre_directory_handler(inode, inode_number);
+        pre_directory_handler(inode, inode_number, file_size);
     }
     printf ("\n");
 }
 
-
-void pre_directory_handler(struct ext2_inode inode, int inode_number){
+void pre_directory_handler(struct ext2_inode inode, int inode_number, int file_size){
     int i;
-    for (i = 0; i < 12; i++){
-        if (inode.i_block[i] == 0){ // check to make sure it's bein used
-            handle_directory_entries(inode_number, i); //inode_number is the parent entry
+    for (i = 0; i < EXT2_NDIR_BLOCKS; i++){ // EXT2_NDIR_BLOCKS is the number of diret blocks
+        int GLOBAL_directory_offset = 0;
+        if (inode.i_block[i] != 0){ // check to make sure it's bein used
+            GLOBAL_directory_offset = handle_directory_entries(inode_number, i, file_size, GLOBAL_directory_offset); //inode_number is the parent entry
         }
     }
 }
@@ -205,25 +204,29 @@ void pre_directory_handler(struct ext2_inode inode, int inode_number){
  6. name length (decimal)
  7. name (string, surrounded by single-quotes). Don't worry about escaping, we promise there will be no single-quotes or commas in any of the file names. */
 
-void handle_directory_entries(int parent_inode, int current_block){
+int handle_directory_entries(int parent_inode, int current_block, int file_size, int GLOBAL_directory_offset){
     struct ext2_dir_entry D;
     int dir_i = 0;
-    int block_iter;
     int dir_len;
     int entry_len = 0;
     int name_len = 0;
     char buf[block_size];
-    
+    int block_offset;
+    int off = 1024 + (num_blocks* block_size) + 1024 + 1024; //boot block + superblock + N*group Descriptors + data block bitmap + inode bitmap
     //iterate from current block -> blocksize, incrementing from length of directory
-    for (block_iter = 0; block_iter < EXT2_NDIR_BLOCKS; block_iter += entry_len){
+    //iterate from current block -> blocksize, incrementing from length of directory
+   
+    int counter = 0;
+    for (block_offset = 0; block_offset < block_size || counter < inodes_per_group; block_offset+= entry_len){ // file_size should be the size of the parent inode
         //pread that block (offset = current_block * BLOCK_SIZE + off, & extract the information
-        pread (FD, &D, sizeof(D), current_block * block_size + block_iter);
+        pread (FD, &D, sizeof(D), off + block_offset); //+ current_block * block_size);
         entry_len = D.rec_len;
         name_len = D.name_len;
-        printf ("global directory offset is :%d\n", block_size * current_block);
         printf ("DIRENT,%d,%d,%d,%d,%d,%s\n", parent_inode, GLOBAL_directory_offset, current_block,entry_len, name_len, D.name);
-        break;
+        counter ++;
+        GLOBAL_directory_offset++;
     }
+    return GLOBAL_directory_offset;
 }
 
 char determine_filetype (struct ext2_inode inode){

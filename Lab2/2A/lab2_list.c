@@ -41,7 +41,6 @@ static struct option long_options[] = {
 };
 
 SortedList_t *m_list; 
-int linked_l_len; 
 SortedListElement_t **m_empty_list;
 
 void *linked_l_handler(void *vargp);
@@ -51,7 +50,7 @@ void format_flags();
 void do_computation_insert(int t_ID);  
 void  do_computation_lookup_to_delete(int t_ID);
 void do_computation_delete(SortedListElement_t *found_element);  
-void  do_computation_len(int t_ID);
+void  do_computation_len();
 
 
 void format_flags(){
@@ -220,11 +219,13 @@ void do_computation_delete(SortedListElement_t *found_element) {
     }
 }
 
-void  do_computation_len (int t_ID) {
-     //printf ("after inserting \n");
+int do_computation_len (int t_ID) {
+     int linked_l_len; 
+    //printf ("after inserting \n");
     //gets the list length
     linked_l_len = SortedList_length(linked_l);
-    //printf ("list len is: %d\n", linked_l_len); 
+    //printf ("list len is: %d\n", linked_l_len);
+    return linked_l_len;  
 }
 void  do_computation_lookup_to_delete (int t_ID) {
 
@@ -256,7 +257,7 @@ void *linked_l_handler(void *vargp) {
 
     else {
         do_computation_insert(t_ID); 
-        do_computation_len(t_ID); 
+        do_computation_len(); 
         do_computation_lookup_to_delete(t_ID);
     }
     
