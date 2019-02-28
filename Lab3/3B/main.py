@@ -1,0 +1,134 @@
+import json
+import csv
+
+sblock_dict = {}
+group_dict = {}
+inode_dict = {}
+dirent_dict = {}
+indirect_dict = {}
+bfree_list = []
+ifree_list = []
+
+def create_all_dictionaries(all_lines):
+    inode_dict_counter = 0
+    dirent_dict_counter = 0
+    indirect_dict_counter = 0
+    for lines in all_lines:
+        if lines[0] == 'SUPERBLOCK':
+            create_sblock_dict(lines)
+        elif lines[0] == 'GROUP':
+            create_group_dict(lines)
+        elif lines[0] == 'BFREE':
+            bfree_list.append(lines[1])
+        elif lines[0] == 'IFREE':
+            ifree_list.append(lines[1])
+        elif lines[0] == 'INODE':
+            inode_dict_counter = create_inode_dict(lines, inode_dict_counter)
+        elif lines[0] == 'DIRENT':
+            dirent_dict_counter = create_dirent_dict(lines, dirent_dict_counter)
+        elif lines[0] == 'INDIRECT':
+            indirect_dict_counter = create_indirent_dict(lines, indirect_dict_counter)
+
+def create_sblock_dict(line):
+    sblock_dict['toal_num_blocks'] = line[1]
+    sblock_dict['total_num_inodes'] = line[2]
+    sblock_dict['block_size'] = line[3]
+    sblock_dict['inode_size'] = line[4]
+    sblock_dict['blocks_per_group'] = line[5]
+    sblock_dict['inodes_per_group'] = line[6]
+    sblock_dict['first_non_res_inode'] = line[7]
+
+def create_group_dict(line):
+    group_dict['group_num'] = line[1]
+    group_dict['num_blocks_per_group'] = line[2]
+    group_dict['num_inodes_per_group'] = line[3]
+    group_dict['num_free_blocks'] = line[4]
+    group_dict['num_free_inodes'] = line[5]
+    group_dict['free_block_bitmap'] = line[6]
+    group_dict['free_inode_bitmap'] = line[7]
+    group_dict["first_inode_block"] = line[8]
+
+def create_inode_dict(line, entry_number):
+    new_dict_entry = {}
+    new_dict_entry['inode_num'] = line[1]
+    new_dict_entry['file_type'] = line[2]
+    new_dict_entry['mode'] = line[3]
+    new_dict_entry['owner'] = line[4]
+    new_dict_entry['group'] = line[5]
+    new_dict_entry['link_count'] = line[6]
+    new_dict_entry['time_last_changed'] = line[7]
+    new_dict_entry['time_last_modified'] = line[7]
+    new_dict_entry['time_last_accessed'] = line[8]
+    new_dict_entry['file_size'] = line[9]
+    new_dict_entry['num_blocks_taken'] = line[10]
+    
+    if len(line) > 12:
+        counter = 12
+        actual_index = 0
+        while counter < 27:
+            new_dict_entry[actual_index] = line[counter]
+            counter = counter + 1
+            actual_index = actual_index + 1
+
+inode_dict[entry_number] = new_dict_entry
+return entry_number + 1
+
+def create_dirent_dict(line, entry_number):
+    new_dict_entry = {}
+    new_dict_entry['inode_parent'] = line[1]
+    new_dict_entry['logical_block_offset'] = line[3]
+    new_dict_entry['file_inode_number'] = line[4]
+    new_dict_entry['entry_len'] = line[4]
+    new_dict_entry['name_len'] = line[5]
+    new_dict_entry['name'] = line[6]
+    
+    dirent_dict[entry_number] = new_dict_entry
+    return entry_number + 1
+
+def create_indirent_dict(line, entry_number):
+    new_dict_entry = {}
+    new_dict_entry['inode_parent'] = line[1]
+    new_dict_entry['level_of_indirection'] = line[3]
+    new_dict_entry['logical_block_offset'] = line[4]
+    new_dict_entry['indirect_block_number'] = line[4]
+    new_dict_entry['block_num_of_referenced_block'] = line[5]
+    indirect_dict[entry_number] = new_dict_entry
+
+def check_blocks():
+    block_start, block_end = calc_block_start_end()
+    for inode_keys in inode_dict:
+        current_inode = inode_dict[inode_keys]
+        for i in range(12):
+            if int(current_inode[i]) != 0:
+                if (int (current_inode[i]) < block_start) or (int(current_inode[i]) > block_end):
+                    handle_block_error(current_inode[i],"inode", current_inode["inode_num"], '0')
+    for indir_keys in indirect_dict:
+
+
+def handle_block_error(invalid_block_num, data_type, inode_number, offset_number ):
+    if type == "inode":
+        print "INVALID BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
+
+
+def calc_block_start_end():
+    inode_bitmap_block_num = int (group_dict["first_inode_block"])
+    # num blocks inode table takes = total number of inodes in a group/ # of inodes per block
+    num_inode_table_blocks = int (sblock_dict['total_num_inodes']) / int(group_dict['num_inodes_per_group'])
+    # where bitmap will start + N blocks of inode table
+    data_block_start_num = inode_bitmap_block_num + num_inode_table_blocks
+    data_block_end_num = int(sblock_dict['toal_num_blocks'])
+    return data_block_start_num, data_block_end_num
+
+def error_handler():
+    print "this is an invalid node"
+
+def open_file(file_name):
+    with open (file_name, "rb") as f:
+        all_lines = csv.reader(f, delimiter=',')
+        create_all_dictionaries(all_lines)
+
+def main ():
+    open_file('trivial.csv')
+    check_blocks()
+
+main ()
