@@ -19,9 +19,9 @@ def create_all_dictionaries(all_lines):
         elif lines[0] == 'GROUP':
             create_group_dict(lines)
         elif lines[0] == 'BFREE':
-            bfree_list.append(lines[1])
+            bfree_list.append(int(lines[1]))
         elif lines[0] == 'IFREE':
-            ifree_list.append(lines[1])
+            ifree_list.append(int(lines[1]))
         elif lines[0] == 'INODE':
             inode_dict_counter = create_inode_dict(lines, inode_dict_counter)
         elif lines[0] == 'DIRENT':
@@ -30,7 +30,7 @@ def create_all_dictionaries(all_lines):
             indirect_dict_counter = create_indirent_dict(lines, indirect_dict_counter)
 
 def create_sblock_dict(line):
-    sblock_dict['toal_num_blocks'] = line[1]
+    sblock_dict['total_num_blocks'] = int(line[1])
     sblock_dict['total_num_inodes'] = line[2]
     sblock_dict['block_size'] = line[3]
     sblock_dict['inode_size'] = line[4]
@@ -96,33 +96,71 @@ def create_indirent_dict(line, entry_number):
     return entry_number + 1
 
 def check_blocks():
+    #handling INVALID/RESERVED
+    seen_blocks = [] # list of seen blocks
     block_start, block_end = calc_block_start_end()
     for inode_keys in inode_dict:
         current_inode = inode_dict[inode_keys]
-        for i in range(12):
-            if int(current_inode[i]) != 0:
-                if (int (current_inode[i]) < block_start) or (int(current_inode[i]) > block_end):
-                    handle_block_error(current_inode[i],"inode", current_inode["inode_num"], '0', None)
+        if current_inode['file_type'] == 's':
+            if current_inode[0] in current_inode:
+                seen_blocks = check_inode_blocks(block_start, block_end, current_inode, seen_blocks)
+        else:
+            seen_blocks = check_inode_blocks(block_start, block_end, current_inode, seen_blocks)
+        seen_blocks = check_indirect_blocks(block_start, block_end, seen_blocks)
+        # handling UNREFERENCED & ALLOCATED BLOCKS
+    handle_referenced_allocated_blocks (block_start, block_end, seen_blocks)
+
+def handle_referenced_allocated_blocks(block_start, block_end, seen_blocks):
+    temp = block_start
+    while temp <= block_end:
+        if (temp not in bfree_list) and (temp not in seen_blocks):
+            print "UNREFERENCED BLOCK " + str(temp)
+        elif (temp in bfree_list) and (temp in seen_blocks):
+            print "ALLOCATED BLOCK " + str(temp) + " ON FREELIST"
+
+def check_inode_blocks(block_start, block_end, current_inode, seen_blocks):
+    for i in range(12):
+        flag = True
+        if int(current_inode[i]) != 0:
+            if int(current_inode[i]) < block_start:
+                handle_block_error("RESERVED", current_inode[i], "inode", current_inode["inode_num"], '0', None)
+                flag = False
+            elif int(current_inode[i]) > block_end:
+                handle_block_error("INVALID", current_inode[i], "inode", current_inode["inode_num"], '0', None)
+                flag = False
+        if flag:
+            seen_blocks.append(int(current_inode[i]))
+    return seen_blocks
+
+def check_indirect_blocks(block_start, block_end, seen_blocks):
     for indir_keys in indirect_dict:
+        flag = True
         curr_indir_inode = indirect_dict[indir_keys]
         curr_indir_inode_block_num = int(curr_indir_inode ['block_num_of_referenced_block'])
         # check if the block is invalid
-        if (curr_indir_inode_block_num < block_start) or (curr_indir_inode_block_num > block_end):
-            # block is invalid, check for level of indirection
-            handle_block_error(curr_indir_inode_block_num, "indir", curr_indir_inode["inode_parent"], curr_indir_inode["logical_block_offset"], curr_indir_inode["indirect_block_number"])
+        if curr_indir_inode_block_num < block_start:
+            handle_block_error("RESERVED", curr_indir_inode_block_num, "indir", curr_indir_inode["inode_parent"], curr_indir_inode["logical_block_offset"], curr_indir_inode["indirect_block_number"])
+            flag = False
+        elif curr_indir_inode_block_num > block_end:
+            handle_block_error("INVALID", curr_indir_inode_block_num, "indir", curr_indir_inode["inode_parent"], curr_indir_inode["logical_block_offset"], curr_indir_inode["indirect_block_number"])
+            flag = False
+        if flag:
+            seen_blocks.append(int(curr_indir_inode ['block_num_of_referenced_block']))
+    return seen_blocks
 
-def handle_block_error(invalid_block_num, data_type, inode_number, offset_number, indirection_level):
+def handle_block_error(err_type, invalid_block_num, data_type, inode_number, offset_number, indirection_level):
     if data_type == "inode":
-        print "INVALID BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
+        print err_type + " BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
     else:
         if indirection_level == '1':
-            indirect_level_str = "INDIRECT "
+            indirect_level_str = " INDIRECT "
         elif indirection_level == '2':
-            indirect_level_str = "DOUBLE INDIRECT "
+            indirect_level_str = " DOUBLE INDIRECT "
         else:
-            indirect_level_str = "TRIPLE INDIRECT "
-        print "INVALID " + indirect_level_str + "BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
-
+            indirect_level_str = " TRIPLE INDIRECT "
+        if int(offset_number) > 1024:
+            offset_number = offset_number % 1024
+        print err_type + indirect_level_str + "BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
 
 def calc_block_start_end():
     inode_bitmap_block_num = int (group_dict["first_inode_block"])
@@ -130,7 +168,7 @@ def calc_block_start_end():
     num_inode_table_blocks = int (sblock_dict['total_num_inodes']) / int(group_dict['num_inodes_per_group'])
     # where bitmap will start + N blocks of inode table
     data_block_start_num = inode_bitmap_block_num + num_inode_table_blocks
-    data_block_end_num = int(sblock_dict['toal_num_blocks'])
+    data_block_end_num = sblock_dict['total_num_blocks']
     return data_block_start_num, data_block_end_num
 
 def error_handler():
