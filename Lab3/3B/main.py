@@ -57,10 +57,10 @@ def create_inode_dict(line, entry_number):
     new_dict_entry['group'] = line[5]
     new_dict_entry['link_count'] = line[6]
     new_dict_entry['time_last_changed'] = line[7]
-    new_dict_entry['time_last_modified'] = line[7]
-    new_dict_entry['time_last_accessed'] = line[8]
-    new_dict_entry['file_size'] = line[9]
-    new_dict_entry['num_blocks_taken'] = line[10]
+    new_dict_entry['time_last_modified'] = line[8]
+    new_dict_entry['time_last_accessed'] = line[9]
+    new_dict_entry['file_size'] = line[10]
+    new_dict_entry['num_blocks_taken'] = line[11]
     
     if len(line) > 12:
         counter = 12
@@ -93,6 +93,7 @@ def create_indirent_dict(line, entry_number):
     new_dict_entry['indirect_block_number'] = line[4]
     new_dict_entry['block_num_of_referenced_block'] = line[5]
     indirect_dict[entry_number] = new_dict_entry
+    return entry_number + 1
 
 def check_blocks():
     block_start, block_end = calc_block_start_end()
@@ -101,13 +102,26 @@ def check_blocks():
         for i in range(12):
             if int(current_inode[i]) != 0:
                 if (int (current_inode[i]) < block_start) or (int(current_inode[i]) > block_end):
-                    handle_block_error(current_inode[i],"inode", current_inode["inode_num"], '0')
+                    handle_block_error(current_inode[i],"inode", current_inode["inode_num"], '0', None)
     for indir_keys in indirect_dict:
+        curr_indir_inode = indirect_dict[indir_keys]
+        curr_indir_inode_block_num = int(curr_indir_inode ['block_num_of_referenced_block'])
+        # check if the block is invalid
+        if (curr_indir_inode_block_num < block_start) or (curr_indir_inode_block_num > block_end):
+            # block is invalid, check for level of indirection
+            handle_block_error(curr_indir_inode_block_num, "indir", curr_indir_inode["inode_parent"], curr_indir_inode["logical_block_offset"], curr_indir_inode["indirect_block_number"])
 
-
-def handle_block_error(invalid_block_num, data_type, inode_number, offset_number ):
-    if type == "inode":
+def handle_block_error(invalid_block_num, data_type, inode_number, offset_number, indirection_level):
+    if data_type == "inode":
         print "INVALID BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
+    else:
+        if indirection_level == '1':
+            indirect_level_str = "INDIRECT "
+        elif indirection_level == '2':
+            indirect_level_str = "DOUBLE INDIRECT "
+        else:
+            indirect_level_str = "TRIPLE INDIRECT "
+        print "INVALID " + indirect_level_str + "BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
 
 
 def calc_block_start_end():
