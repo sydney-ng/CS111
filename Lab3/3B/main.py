@@ -117,23 +117,27 @@ def check_blocks():
                                                                           all_valid_block_num_only)
                                                                           # handling UNREFERENCED & ALLOCATED BLOCKS
     handle_referenced_allocated_blocks(block_start, block_end, valid_indir_blocks)
-
-
-# handling DUPLICATE BLOCKS
-# shandle_duplicate_blocks (valid_indir_blocks, all_valid_block_num_only)
+    # handling DUPLICATE BLOCKS
+    handle_duplicate_blocks (valid_indir_blocks, all_valid_block_num_only)
 
 def is_valid_block(block_num, start, end):
     if (block_num < start) or (block_num >= end):
         return False
     return True
 
-'''def handle_duplicate_blocks (valid_indir_blocks, all_valid_block_num_only):
-    for inode_blocks in valid_inode_blocks:
-    for i in range (15):
-    if inode_blocks[i] != 0:
-    if inode_blocks[i] in all_valid_block_num_only:
-    print "DUPLICATE BLOCK " + str(i) + " IN INODE " '''
-
+def handle_duplicate_blocks(valid_indir_blocks, all_valid_block_num_only):
+    for inode_blocks in inode_dict:
+        curr_entry = inode_dict[inode_blocks]
+        for i in range(15):
+            if curr_entry[i]:
+                x = int(curr_entry[i])
+                if (x!= 0) and (all_valid_block_num_only.count(x) > 1):
+                    if i >= 12:
+                        offset, indir_level_str = calc_13_to_15_stuff(i)
+                    else:
+                        offset = '0'
+                        indir_level_str = ''
+                    print "DUPLICATE " + indir_level_str + "BLOCK " + str(x) + " IN INODE " + str(curr_entry['inode_num']) + " AT OFFSET " + offset
 
 def handle_referenced_allocated_blocks(block_start, block_end, valid_indir_blocks):
     i1 = block_start  # will iterate from first -> last block
@@ -164,7 +168,6 @@ def handle_referenced_allocated_blocks(block_start, block_end, valid_indir_block
                     if int(indir_blocks["block_num_of_referenced_block"]) == i1:
                         print "ALLOCATED BLOCK " + str(i1) + " ON FREELIST"
         i1 = i1 + 1
-
 
 def handle_inode_blocks(block_start, block_end, current_inode, all_valid_block_num_only):
     for i in range(15):
