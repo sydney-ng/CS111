@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+
 import csv
+import sys
+import os
 
 sblock_dict = {}
 group_dict = {}
@@ -48,7 +52,7 @@ def create_group_dict(line):
     group_dict['num_free_inodes'] = line[5]
     group_dict['free_block_bitmap'] = line[6]
     group_dict['free_inode_bitmap'] = line[7]
-    group_dict["first_inode_block"] = line[8]
+    group_dict['first_inode_block'] = line[8]
 
 
 def create_inode_dict(line, entry_number):
@@ -73,8 +77,8 @@ def create_inode_dict(line, entry_number):
             counter = counter + 1
             actual_index = actual_index + 1
 
-inode_dict[entry_number] = new_dict_entry
-entry_number = entry_number + 1
+    inode_dict[entry_number] = new_dict_entry
+    entry_number = entry_number + 1
     return entry_number
 
 
@@ -220,21 +224,26 @@ def calc_block_start_end():
     data_block_end_num = sblock_dict['total_num_blocks']
     return data_block_start_num, data_block_end_num
 
-
-def error_handler():
-    print "this is an invalid node"
-
-
 def open_file(file_name):
-    with open(file_name, "rb") as f:
-        all_lines = csv.reader(f, delimiter=',')
-        create_all_dictionaries(all_lines)
-
+    if os.path.isfile(file_name):
+        with open(file_name, "rb") as f:
+            all_lines = csv.reader(f, delimiter=',')
+            create_all_dictionaries(all_lines)
+        return True
+    else:
+        sys.stderr.write(file_name + " is not a valid file ")
+        return False
 
 def main():
-    open_file('trivial.csv')
-    check_blocks()
-
+    if len (sys.argv) >= 2:
+        if open_file(sys.argv[1]):
+            check_blocks()
+        else:
+            exit(1)
+    else:
+        sys.stderr.write("error, system has only " + str(len(sys.argv)) + " args")
+        exit(1)
+    exit(0)
 
 main()
 
