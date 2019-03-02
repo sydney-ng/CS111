@@ -120,11 +120,6 @@ def check_blocks():
     # handling DUPLICATE BLOCKS
     handle_duplicate_blocks (valid_indir_blocks, all_valid_block_num_only)
 
-def is_valid_block(block_num, start, end):
-    if (block_num < start) or (block_num >= end):
-        return False
-    return True
-
 def handle_duplicate_blocks(valid_indir_blocks, all_valid_block_num_only):
     for inode_blocks in inode_dict:
         curr_entry = inode_dict[inode_blocks]
@@ -259,11 +254,21 @@ def open_file(file_name):
         sys.stderr.write(file_name + " is not a valid file ")
         return False
 
+def check_inodes():
+    for inode_entry in inode_dict:
+        curr_entry_type = inode_dict[inode_entry]['file_type']
+        curr_entry_value = inode_dict[inode_entry]['inode_num']
+        if curr_entry_type != 'f' and curr_entry_type != 'd' and curr_entry_type != 's':
+            if curr_entry_value not in ifree_list:
+                print "UNALLOCATED INODE " + str(curr_entry_value) + " NOT ON FREELIST"
+        elif curr_entry_value in ifree_list:
+                print "ALLOCATED INODE " + str(curr_entry_value) + " ON FREELIST"    
 
 def main():
     if len(sys.argv) >= 2:
         if open_file(sys.argv[1]):
             check_blocks()
+            check_inodes()
         else:
             exit(1)
     else:
