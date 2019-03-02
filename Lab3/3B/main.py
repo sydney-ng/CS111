@@ -218,7 +218,6 @@ def calc_13_to_15_stuff(i):
         exit(1)
     return offset, indir_level_str
 
-
 def handle_indirect_blocks(block_start, block_end, valid_indir_blocks, all_valid_block_num_only):
     for indir_keys in indirect_dict:
         flag = True
@@ -254,14 +253,12 @@ def handle_block_error(err_type, invalid_block_num, data_type, inode_number, off
             offset_number = offset_number % 1024
             print err_type + indirect_level_str + "BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + offset_number
 
-
 def calc_block_start_end():
     group_size = (sblock_dict['total_num_blocks'] / sblock_dict['blocks_per_group']) + 1
     inode_table_size = ((sblock_dict['total_num_inodes'] * sblock_dict['inode_size']) / sblock_dict['block_size']) + 1
     data_block_start_num = 1 + group_size + 1 + 1 + inode_table_size  # 1 for super block, 1 for block free, 1 for inode free
     data_block_end_num = sblock_dict['total_num_blocks']
     return data_block_start_num, data_block_end_num
-
 
 def open_file(file_name):
     if os.path.isfile(file_name):
@@ -296,6 +293,7 @@ def main():
     if len(sys.argv) >= 2:
         if open_file(sys.argv[1]):
             check_blocks()
+            check_inodes()
         else:
             exit(1)
     else:
