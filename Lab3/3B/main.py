@@ -42,6 +42,7 @@ def create_sblock_dict(line):
     sblock_dict['inodes_per_group'] = int(line[6])
     sblock_dict['first_non_res_inode'] = int(line[7])
 
+
 def create_group_dict(line):
     group_dict['group_num'] = line[1]
     group_dict['num_blocks_per_group'] = line[2]
@@ -52,9 +53,10 @@ def create_group_dict(line):
     group_dict['free_inode_bitmap'] = line[7]
     group_dict['first_inode_block'] = line[8]
 
+
 def create_inode_dict(line, entry_number):
     new_dict_entry = {}
-    new_dict_entry['inode_num'] = line[1]
+    new_dict_entry['inode_num'] = int(line[1])
     new_dict_entry['file_type'] = line[2]
     new_dict_entry['mode'] = line[3]
     new_dict_entry['owner'] = line[4]
@@ -65,7 +67,7 @@ def create_inode_dict(line, entry_number):
     new_dict_entry['time_last_accessed'] = line[9]
     new_dict_entry['file_size'] = line[10]
     new_dict_entry['num_blocks_taken'] = line[11]
-    
+
     if len(line) > 12:
         counter = 12
         actual_index = 0
@@ -78,6 +80,7 @@ def create_inode_dict(line, entry_number):
     entry_number = entry_number + 1
     return entry_number
 
+
 def create_dirent_dict(line, entry_number):
     new_dict_entry = {}
     new_dict_entry['inode_parent'] = line[1]
@@ -86,9 +89,10 @@ def create_dirent_dict(line, entry_number):
     new_dict_entry['entry_len'] = line[4]
     new_dict_entry['name_len'] = line[5]
     new_dict_entry['name'] = line[6]
-    
+
     dirent_dict[entry_number] = new_dict_entry
     return entry_number + 1
+
 
 def create_indirent_dict(line, entry_number):
     new_dict_entry = {}
@@ -99,6 +103,7 @@ def create_indirent_dict(line, entry_number):
     new_dict_entry['block_num_of_referenced_block'] = line[5]
     indirect_dict[entry_number] = new_dict_entry
     return entry_number + 1
+
 
 def check_blocks():
     # handling INVALID/RESERVED
@@ -115,10 +120,17 @@ def check_blocks():
     # handle indirect blocks
     valid_indir_blocks, all_valid_block_num_only = handle_indirect_blocks(block_start, block_end, valid_indir_blocks,
                                                                           all_valid_block_num_only)
-                                                                          # handling UNREFERENCED & ALLOCATED BLOCKS
+    # handling UNREFERENCED & ALLOCATED BLOCKS
     handle_referenced_allocated_blocks(block_start, block_end, valid_indir_blocks)
     # handling DUPLICATE BLOCKS
-    handle_duplicate_blocks (valid_indir_blocks, all_valid_block_num_only)
+    handle_duplicate_blocks(valid_indir_blocks, all_valid_block_num_only)
+
+
+def is_valid_block(block_num, start, end):
+    if (block_num < start) or (block_num >= end):
+        return False
+    return True
+
 
 def handle_duplicate_blocks(valid_indir_blocks, all_valid_block_num_only):
     for inode_blocks in inode_dict:
@@ -164,6 +176,7 @@ def handle_referenced_allocated_blocks(block_start, block_end, valid_indir_block
                         print "ALLOCATED BLOCK " + str(i1) + " ON FREELIST"
         i1 = i1 + 1
 
+
 def handle_inode_blocks(block_start, block_end, current_inode, all_valid_block_num_only):
     for i in range(15):
         flag = True
@@ -171,36 +184,40 @@ def handle_inode_blocks(block_start, block_end, current_inode, all_valid_block_n
             if int(current_inode[i]) < block_start:
                 if i < 12:
                     handle_block_error("RESERVED ", current_inode[i], "inode", current_inode["inode_num"], '0', '')
-                else: # 13 - 15
-                    offset, indir_lvl_str = calc_13_to_15_stuff (i)
-                    handle_block_error("RESERVED ", current_inode[i], "inode", current_inode["inode_num"], offset, indir_lvl_str)
+                else:  # 13 - 15
+                    offset, indir_lvl_str = calc_13_to_15_stuff(i)
+                    handle_block_error("RESERVED ", current_inode[i], "inode", current_inode["inode_num"], offset,
+                                       indir_lvl_str)
                 flag = False
             elif int(current_inode[i]) > block_end:
                 if i < 12:
-                    handle_block_error("INVALID ", current_inode[i], "inode", current_inode["inode_num"], '0', ''   )
-                else: # 13 - 15
-                    offset, indir_lvl_str = calc_13_to_15_stuff (i)
-                    handle_block_error("INVALID ", current_inode[i], "inode", current_inode["inode_num"], offset, indir_lvl_str)
+                    handle_block_error("INVALID ", current_inode[i], "inode", current_inode["inode_num"], '0', '')
+                else:  # 13 - 15
+                    offset, indir_lvl_str = calc_13_to_15_stuff(i)
+                    handle_block_error("INVALID ", current_inode[i], "inode", current_inode["inode_num"], offset,
+                                       indir_lvl_str)
                 flag = False
         if flag:
             all_valid_block_num_only.append(int(current_inode[i]))
     return all_valid_block_num_only
 
-def calc_13_to_15_stuff (i):
+
+def calc_13_to_15_stuff(i):
     offset = str(12)
     indir_level_str = ""
-    if i+1 == 13:
+    if i + 1 == 13:
         indir_level_str = "INDIRECT "
-    elif i+1 == 14:
+    elif i + 1 == 14:
         offset = str(256 + 12)
         indir_level_str = "DOUBLE INDIRECT "
-    elif i+1 == 15:
+    elif i + 1 == 15:
         offset = str((256 * 256) + 256 + 12)
         indir_level_str = "TRIPLE INDIRECT "
     else:
-        sys.stderr.write ("invalid node being checked")
-        exit (1)
+        sys.stderr.write("invalid node being checked")
+        exit(1)
     return offset, indir_level_str
+
 
 def handle_indirect_blocks(block_start, block_end, valid_indir_blocks, all_valid_block_num_only):
     for indir_keys in indirect_dict:
@@ -221,9 +238,11 @@ def handle_indirect_blocks(block_start, block_end, valid_indir_blocks, all_valid
             all_valid_block_num_only.append(curr_indir_inode_block_num)
     return valid_indir_blocks, all_valid_block_num_only
 
+
 def handle_block_error(err_type, invalid_block_num, data_type, inode_number, offset_number, indirection_level):
     if data_type == "inode":
-        print  err_type + indirection_level + "BLOCK " + invalid_block_num + " IN INODE " + inode_number + " AT OFFSET " + str(offset_number)
+        print  err_type + indirection_level + "BLOCK " + str(invalid_block_num) + " IN INODE " + str(inode_number) + " AT OFFSET " + str(
+            offset_number)
     else:
         if indirection_level == '1':
             indirect_level_str = "INDIRECT "
@@ -259,7 +278,9 @@ def check_inodes():
     for inode_entry in inode_dict:
         curr_entry_type = inode_dict[inode_entry]['file_type']
         curr_entry_value = inode_dict[inode_entry]['inode_num']
-        if curr_entry_type != 'f' and curr_entry_type != 'd' and curr_entry_type != 's':
+        if curr_entry_type == 'f' or curr_entry_type == 'd' or curr_entry_type != 's':
+            #if curr_entry_value not in ifree_list:
+            #    print "UNALLOCATED INODE " + str(curr_entry_value) + " NOT ON FREELIST"
             if curr_entry_value in ifree_list:
                 print "ALLOCATED INODE " + str(curr_entry_value) + " ON FREELIST"
         seen_inodes.append(inode_dict[inode_entry]['inode_num'])
@@ -269,21 +290,22 @@ def check_inodes():
         if starting_inode not in seen_inodes:
             if starting_inode not in ifree_list:
                 print "UNALLOCATED INODE " + str(starting_inode) + " NOT ON FREELIST"
-        starting_inode = starting_inode + 1   
+        starting_inode = starting_inode + 1
 
 def main():
     if len(sys.argv) >= 2:
         if open_file(sys.argv[1]):
             check_blocks()
-            check_inodes()
         else:
             exit(1)
     else:
         sys.stderr.write("error, system has only " + str(len(sys.argv)) + " args")
         exit(1)
-    
-    #if open_file('test8.txt'):
-    #    check_blocks()
-    exit(0)
+
+    '''if open_file('test16.txt'):
+        check_blocks()
+        check_inodes()'''
+    #exit(0)
+
 
 main()
