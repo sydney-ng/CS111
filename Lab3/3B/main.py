@@ -255,14 +255,21 @@ def open_file(file_name):
         return False
 
 def check_inodes():
+    seen_inodes = []
     for inode_entry in inode_dict:
         curr_entry_type = inode_dict[inode_entry]['file_type']
         curr_entry_value = inode_dict[inode_entry]['inode_num']
         if curr_entry_type != 'f' and curr_entry_type != 'd' and curr_entry_type != 's':
-            if curr_entry_value not in ifree_list:
-                print "UNALLOCATED INODE " + str(curr_entry_value) + " NOT ON FREELIST"
-        elif curr_entry_value in ifree_list:
-                print "ALLOCATED INODE " + str(curr_entry_value) + " ON FREELIST"    
+            if curr_entry_value in ifree_list:
+                print "ALLOCATED INODE " + str(curr_entry_value) + " ON FREELIST"
+        seen_inodes.append(inode_dict[inode_entry]['inode_num'])
+    starting_inode = sblock_dict['first_non_res_inode']
+    nodes_to_see = sblock_dict['total_num_inodes']
+    while starting_inode < nodes_to_see:
+        if starting_inode not in seen_inodes:
+            if starting_inode not in ifree_list:
+                print "UNALLOCATED INODE " + str(starting_inode) + " NOT ON FREELIST"
+        starting_inode = starting_inode + 1   
 
 def main():
     if len(sys.argv) >= 2:
