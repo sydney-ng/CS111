@@ -53,7 +53,6 @@ def create_group_dict(line):
     group_dict['free_inode_bitmap'] = line[7]
     group_dict['first_inode_block'] = line[8]
 
-
 def create_inode_dict(line, entry_number):
     new_dict_entry = {}
     new_dict_entry['inode_num'] = int(line[1])
@@ -289,21 +288,49 @@ def check_inodes():
                 print "UNALLOCATED INODE " + str(starting_inode) + " NOT ON FREELIST"
         starting_inode = starting_inode + 1
 
+def check_directories():
+    handle_bogus_entries()
+    handle_invalid_nodes()
+
+def handle_invalid_nodes():
+    starting_inode = sblock_dict['first_non_res_inode']
+    nodes_to_see = sblock_dict['total_num_inodes']
+    for directories in dirent_dict:
+        inode_referenced = int (dirent_dict[directories]['file_inode_number'])
+        if inode_referenced > nodes_to_see: # or inode_referenced < starting_inode:
+            print "DIRECTORY INODE " + str(dirent_dict[directories]['inode_parent']) + " NAME " + dirent_dict[directories]["name"] + " INVALID INODE " + str(inode_referenced)
+
+def handle_bogus_entries():
+    link_dict = {}
+    for directories in dirent_dict:
+        inode_referenced = int (dirent_dict[directories]['file_inode_number'])
+        if inode_referenced in link_dict:
+            link_dict [inode_referenced] = link_dict [inode_referenced] + 1
+        else:
+            link_dict[inode_referenced] = 1
+    for inodes in inode_dict:
+        curr_inode_num = inode_dict[inodes]['inode_num']
+        inode_link_count = inode_dict[inodes]['link_count']
+        if curr_inode_num in link_dict:
+            x = int(link_dict[curr_inode_num])
+            y = int(inode_link_count)
+            if int(link_dict[curr_inode_num]) != int(inode_link_count):
+                print "INODE " + str(curr_inode_num) + " HAS " + str(link_dict[curr_inode_num]) + " LINKS BUT LINKCOUNT IS " + str(inode_link_count)
+                return
+        else:
+            print "INODE " + str(curr_inode_num) + " HAS " + '0' + " LINKS BUT LINKCOUNT IS " + str(inode_link_count)
+
 def main():
     if len(sys.argv) >= 2:
         if open_file(sys.argv[1]):
             check_blocks()
             check_inodes()
+            check_directories()
         else:
             exit(1)
     else:
         sys.stderr.write("error, system has only " + str(len(sys.argv)) + " args")
         exit(1)
-
-    '''if open_file('test16.txt'):
-        check_blocks()
-        check_inodes()'''
-    #exit(0)
 
 
 main()
