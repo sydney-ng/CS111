@@ -291,7 +291,38 @@ def check_inodes():
 
 def check_directories(seen_inodes):
     handle_bogus_entries()
-    handle_invalid_nodes(seen_inodes)      
+    handle_invalid_nodes(seen_inodes) 
+    check_roots()
+
+def check_roots():
+    link_dict = {}
+    for directories in dirent_dict:
+        parent = int(dirent_dict[directories]['inode_parent'])
+        inode_referenced = int (dirent_dict[directories]['file_inode_number'])
+        if '.' not in dirent_dict[directories]['name']:
+            if inode_referenced not in link_dict:
+                link_dict[inode_referenced] = parent
+
+    for directories in dirent_dict:
+        x = dirent_dict[directories]
+        inode_referenced = int (dirent_dict[directories]['file_inode_number'])
+        parent_dir = int (dirent_dict[directories]['inode_parent'])
+        file_name = dirent_dict[directories]["name"]
+        flag = True
+        if '.' in file_name:
+            if '..' in file_name:
+                if parent_dir in link_dict:
+                    if link_dict[parent_dir] != inode_referenced:
+                        parent_dir = link_dict[inode_referenced]
+                        flag = False
+                elif parent_dir != inode_referenced:          
+                    flag = False
+            else:
+                if inode_referenced != parent_dir:
+                    flag = False
+        if not flag:            
+            print "DIRECTORY INODE " + str(parent_dir) + " NAME " + dirent_dict[directories]['name'] + " LINK TO INODE " + str(inode_referenced) + " SHOULD BE " + str(link_dict[inode_referenced])
+
 
 def handle_invalid_nodes(seen_inodes):
     starting_inode = sblock_dict['first_non_res_inode']
