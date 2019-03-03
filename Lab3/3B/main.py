@@ -287,18 +287,21 @@ def check_inodes():
             if starting_inode not in ifree_list:
                 print "UNALLOCATED INODE " + str(starting_inode) + " NOT ON FREELIST"
         starting_inode = starting_inode + 1
+    return seen_inodes
 
-def check_directories():
+def check_directories(seen_inodes):
     handle_bogus_entries()
-    handle_invalid_nodes()
+    handle_invalid_nodes(seen_inodes)      
 
-def handle_invalid_nodes():
+def handle_invalid_nodes(seen_inodes):
     starting_inode = sblock_dict['first_non_res_inode']
     nodes_to_see = sblock_dict['total_num_inodes']
     for directories in dirent_dict:
         inode_referenced = int (dirent_dict[directories]['file_inode_number'])
-        if inode_referenced > nodes_to_see: # or inode_referenced < starting_inode:
+        if inode_referenced > nodes_to_see or inode_referenced < 1: # or inode_referenced < starting_inode:
             print "DIRECTORY INODE " + str(dirent_dict[directories]['inode_parent']) + " NAME " + dirent_dict[directories]["name"] + " INVALID INODE " + str(inode_referenced)
+        elif inode_referenced not in seen_inodes:
+            print "DIRECTORY INODE " + str(dirent_dict[directories]['inode_parent']) + " NAME " + dirent_dict[directories]["name"] + " UNALLOCATED INODE " + str(inode_referenced)
 
 def handle_bogus_entries():
     link_dict = {}
@@ -324,8 +327,8 @@ def main():
     if len(sys.argv) >= 2:
         if open_file(sys.argv[1]):
             check_blocks()
-            check_inodes()
-            check_directories()
+            seen_inodes = check_inodes()
+            check_directories(seen_inodes)
         else:
             exit(1)
     else:
