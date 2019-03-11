@@ -51,6 +51,40 @@ void initialize_sensors (){
     //mraa_gpio_close(B);
 }
 
+
+void process_current_command (char * command_input) {
+    printf ("process which command it is with input as %s \n", command_input);
+    if(strcmp(command_input, "SCALE=F") == 0) {
+        printf ("SCALE=F\n");
+        farenheit_flag = true; 
+    }
+   else if(strcmp("command_input", "SCALE=C") == 0) {
+        printf ("SCALE=C\n");
+        farenheit_flag = false; 
+   }
+   else if(strcmp(command_input, "STOP") == 0) {
+        printf ("STOP\n"); 
+        generate_reports_flag = false; 
+    }
+    else if(strcmp(command_input, "START") == 0) {
+        generate_reports_flag = true; 
+        printf ("START\n"); 
+    }
+    else {
+        //printf ("this is not a valid option yet\n");
+        char * ret = NULL;
+        if (ret = strstr (command_input, "PERIOD=")) {
+            ret = strstr (command_input, "=");
+            printf ("per num is: %s \n", ret+1); 
+        }
+        
+        else {
+            printf ("tjhis is an invalid period \n");
+        }
+    }
+
+}
+
 void read_values(mraa_aio_context T, mraa_gpio_context B){
     float temp_T_val;
     float T_val; 
@@ -158,7 +192,6 @@ int main(int argc, char **argv) {
     }
     initialize_sensors(); 
 
-    /* watch stdin for input */
     struct pollfd fds[1];
     fds[0].fd = STDIN_FILENO;
     fds[0].events = POLLIN;
@@ -169,8 +202,6 @@ int main(int argc, char **argv) {
 
         ret = poll(fds, 1, 0);
 
-        //printf ("polling!\n"); 
-        // error 
         if (ret == -1) {
             printf ("polling error \n");
             perror ("poll");
@@ -216,36 +247,4 @@ void parse_command(char * command_input) {
     printf ("process the very last cmd \n");
     curr_command[curr_command_counter] = '\0';
     process_current_command (curr_command); 
-}
-
-void process_current_command (char * command_input) {
-    printf ("process which command it is with input as %s \n", command_input);
-    if(strcmp(command_input, "SCALE=F") == 0) {
-        printf ("SCALE=F\n");
-        farenheit_flag = true; 
-    }
-   else if(strcmp("command_input", "SCALE=C") == 0) {
-        printf ("SCALE=C\n");
-        farenheit_flag = false; 
-   }
-   else if(strcmp(command_input, "STOP") == 0) {
-        printf ("STOP\n"); 
-        generate_reports_flag = false; 
-    }
-    else if(strcmp(command_input, "START") == 0) {
-        generate_reports_flag = true; 
-        printf ("START\n"); 
-    }
-    else {
-        //printf ("this is not a valid option yet\n");
-        char * ret = NULL;
-        ret = strstr (command_input, "PERIOD=");
-        if (ret){
-            printf ("per num is: %s \n", ret); 
-        }
-        else {
-            printf ("tjhis is an invalid period \n");
-        }
-    }
-
 }
