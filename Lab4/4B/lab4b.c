@@ -44,11 +44,11 @@ void initialize_sensors (){
     }
     
     //Read from them
-    read_values(T, B);
+    //read_values(T, B);
     
     //Close Them
-    mraa_aio_close(T);
-    mraa_gpio_close(B);
+    //mraa_aio_close(T);
+    //mraa_gpio_close(B);
 }
 
 void read_values(mraa_aio_context T, mraa_gpio_context B){
@@ -106,7 +106,7 @@ void print_report(struct tm * time_struct, float T_val){
 }
 
 void turn_off (){
-
+    mraa_gpio_close(B);
 }
 
 static struct option long_options[] = {
@@ -178,17 +178,15 @@ int main(int argc, char **argv) {
         }
         else if (mraa_gpio_read(B) == 1){
             printf ("button was pressed\n");
-            //turn_off();
+            turn_off();
         //this is a valid command passed
         }
         else if (fds[0].revents == POLLIN) {
             printf ("send to parse command \n");
             fgets(command_input, 100, stdin);
-            printf ("fgot command \n");
             parse_command(command_input); 
         }
     }
-
     return(0);
 }
 
@@ -204,8 +202,8 @@ void parse_command(char * command_input) {
         }
         else {
             curr_command[curr_command_counter] = '\0';
-            process_current_command (curr_command); 
             printf ("found a space!!\n");
+            process_current_command (curr_command); 
             // reset variables 
             curr_command_counter = 0; 
             int i;
@@ -215,11 +213,13 @@ void parse_command(char * command_input) {
         }
         command_input++;
     }
+    printf ("process the very last cmd \n");
+    curr_command[curr_command_counter] = '\0';
     process_current_command (curr_command); 
 }
 
 void process_current_command (char * command_input) {
-    printf ("process which command it is \n");
+    printf ("process which command it is with input as %s \n", command_input);
     if(strcmp(command_input, "SCALE=F") == 0) {
         printf ("SCALE=F\n");
         farenheit_flag = true; 
@@ -237,7 +237,7 @@ void process_current_command (char * command_input) {
         printf ("START\n"); 
     }
     else {
-        printf ("this is period\n");
+        //printf ("this is not a valid option yet\n");
         char * ret = NULL;
         ret = strstr (command_input, "PERIOD=");
         if (ret){
