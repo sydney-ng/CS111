@@ -32,6 +32,7 @@ void print_report(struct tm * time_struct, float T_val);
 void initialize_sensors (); 
 float format_values (float temp_T_val, float B_val); 
 void parse_command(char * command_input); 
+struct tm * get_time(); 
 
 void initialize_sensors (){
     //intialize
@@ -49,9 +50,10 @@ void initialize_sensors (){
 }
 
 void process_command_options (char * command_input) {
+    printf ("in process command options with %s \n", command_input); 
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
-        if (generate_reports_flag){
+        if (generate_reports_flag && log_file_name != NULL){
             fprintf(log_file_name, "SCALE=F\n");
                     fflush(log_file_name);
 
@@ -60,10 +62,13 @@ void process_command_options (char * command_input) {
             printf ("SCALE=F\n");
         }
     }
+    else if(strcmp(command_input, "OFF") == 0) {
+        turn_off();
+    }
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
 
-        if (generate_reports_flag){
+        if (generate_reports_flag && log_file_name != NULL){
             fprintf(log_file_name, "SCALE=C\n");
                     fflush(log_file_name);
 
@@ -74,7 +79,7 @@ void process_command_options (char * command_input) {
 
    }
    else if(strcmp(command_input, "STOP") == 0) {
-        if (generate_reports_flag){
+        if (generate_reports_flag && log_file_name != NULL){
             fprintf(log_file_name, "STOP\n");
                     fflush(log_file_name);
 
@@ -94,12 +99,13 @@ void process_command_options (char * command_input) {
         //printf ("this is not a valid option yet\n");
         char * ret = NULL;
         char * ret2 = NULL;
+                char * ret3 = NULL;
 
         if (ret = strstr (command_input, "PERIOD=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
 
-            if (generate_reports_flag){
+            if (generate_reports_flag && log_file_name != NULL){
                 //printf("writing to log file for period \n"); 
                 fprintf(log_file_name, "%s\n", ret);
                         fflush(log_file_name);
@@ -110,7 +116,17 @@ void process_command_options (char * command_input) {
             }
         }
 
-        else if (ret = strstr (command_input, "period=")) {
+        if (ret = strstr (command_input, "LOG")) {
+            printf("%s\n", ret);
+            if (generate_reports_flag && log_file_name != NULL){
+                //printf("writing to log file for period \n"); 
+                fprintf(log_file_name, "%s\n", ret);
+                        fflush(log_file_name);
+
+            }
+        }
+
+        /*else if (ret = strstr (command_input, "period=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
 
@@ -124,8 +140,7 @@ void process_command_options (char * command_input) {
                 printf("%s\n", ret);
             }
 
-        }
-
+        }*/
         
         else {
             fprintf (stderr, "%s", "this is an invalid command./ \n");
@@ -138,14 +153,22 @@ void process_command_options (char * command_input) {
     }
 }
 
-void read_values(){
-    float temp_T_val;
-    float T_val; 
-    float B_val;
+struct tm * get_time() {
     time_t rawtime;
     struct tm * time_struct;
 
     time_struct = localtime(&rawtime);
+
+    return time_struct; 
+}
+
+void read_values(){
+    float temp_T_val;
+    float T_val; 
+    float B_val;
+    struct tm * time_struct;
+
+    time_struct = get_time (); 
     temp_T_val = mraa_aio_read(T);
     B_val = mraa_gpio_read(B);
     
@@ -172,7 +195,7 @@ float format_values (float temp_T_val, float B_val) {
     if (farenheit_flag == true){
         temp2_T_val = (1.8 * temp_T_val) + 32;
     }
-    return temp2_T_val; 
+   return temp2_T_val; 
 }
 
 void print_report(struct tm * time_struct, float T_val){
@@ -181,11 +204,11 @@ void print_report(struct tm * time_struct, float T_val){
     int sec = time_struct->tm_sec; 
     char buf[100];
 
-    if (generate_reports_flag){
-        fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-        fflush(log_file_name);
-        printf("writing to log file for temperature \n"); 
-    }
+    if (generate_reports_flag && log_file_name != NULL){
+            fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+            fflush(log_file_name);
+            //printf("writing to log file for temperature \n"); 
+        }
     else {
         fprintf (stdout, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
 
@@ -194,12 +217,26 @@ void print_report(struct tm * time_struct, float T_val){
 }
 
 void turn_off (){
-    fprintf (stdout, "%s \n", "OFF"); 
-    if (generate_reports_flag){
-        fprintf(log_file_name, "SCALE=F\n");
-        fflush(log_file_name);
+    struct tm * time_struct;
 
-    }
+    fprintf (stdout, "%s \n", "OFF"); 
+    fprintf(log_file_name, "OFF\n");
+    fflush(log_file_name);
+
+
+
+    time_struct = get_time(); 
+    int hr = time_struct->tm_hour;
+    int min = time_struct->tm_min;
+    int sec = time_struct->tm_sec; 
+
+
+    fprintf (stdout, "%s \n", "SHUTDOWN"); 
+    fprintf(log_file_name, "%02d:%02d:%02d ", hr, min, sec);
+    fprintf(log_file_name, "SHUTDOWN\n");
+    fflush(log_file_name);
+
+
     mraa_gpio_close(B);
 }
 
@@ -291,16 +328,24 @@ void parse_command(char * command_input) {
             curr_command[curr_command_counter] = *command_input;
             curr_command_counter ++; 
         }
-        else {
-            curr_command[curr_command_counter] = '\0';
-            //printf ("found a space!!\n");
-            process_command_options (curr_command); 
-            // reset variables 
-            curr_command_counter = 0; 
-            int i;
-            for (i = 0; i < 50; i ++){
-                curr_command [i] = '\0';
+        else { 
+            if (curr_command[0] == 'L' && curr_command[1] == 'O' && curr_command[2] == 'G') {
+                curr_command[curr_command_counter] = ' ';
+                curr_command_counter ++; 
+                continue; 
             }
+            else {
+                curr_command[curr_command_counter] = '\0';
+                //printf ("found a space!!\n");
+                process_command_options (curr_command); 
+                // reset variables 
+                curr_command_counter = 0; 
+                int i;
+                for (i = 0; i < 50; i ++){
+                    curr_command [i] = '\0';
+                }
+            }
+            
         }
         command_input++;
     }
