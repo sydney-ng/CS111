@@ -26,6 +26,7 @@ int period = 1;
 /* https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm*/
 
 void turn_off(); 
+bool parse_command2 (char * curr_command);
 void process_command_options (char * command_input);
 void read_values();
 void print_report(struct tm * time_struct, float T_val); 
@@ -100,11 +101,11 @@ void process_command_options (char * command_input) {
         char * ret = NULL;
         char * ret2 = NULL;
                 char * ret3 = NULL;
-
+        printf (" this could be period \n"); 
         if (ret = strstr (command_input, "PERIOD=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
-
+            printf ("this is period \n"); 
             if (generate_reports_flag && log_file_name != NULL){
                 //printf("writing to log file for period \n"); 
                 fprintf(log_file_name, "%s\n", ret);
@@ -116,9 +117,10 @@ void process_command_options (char * command_input) {
             }
         }
 
-        if (ret = strstr (command_input, "LOG")) {
+        else if (ret = strstr (command_input, "LOG")) {
             printf("%s\n", ret);
-            if (generate_reports_flag && log_file_name != NULL){
+            printf ("logfile is: %s\n", log_file_name);
+            if (log_file_name != NULL){
                 //printf("writing to log file for period \n"); 
                 fprintf(log_file_name, "%s\n", ret);
                         fflush(log_file_name);
@@ -318,23 +320,27 @@ int main(int argc, char **argv) {
     }
 }
 
+bool parse_command2 (char * curr_command){
+    if (curr_command[0] == 'L' && curr_command[1] == 'O' && curr_command[2] == 'G') {
+        return true; 
+        }
+    else {
+        return false; 
+    }
+}
+
 void parse_command(char * command_input) {
     printf("inside parse command\n" );
     char * curr_command = (char *)malloc(50 * sizeof(char));
     int curr_command_counter = 0; 
     while(command_input != NULL && *command_input != '\n' && curr_command_counter < 50) {
         if (*command_input != ' ' && *command_input != '\n'){
-            //printf ("counter is at %d, looking at char %c \n", curr_command_counter, *command_input);
+            printf ("counter is at %d, looking at char %c \n", curr_command_counter, *command_input);
             curr_command[curr_command_counter] = *command_input;
             curr_command_counter ++; 
         }
         else { 
-            if (curr_command[0] == 'L' && curr_command[1] == 'O' && curr_command[2] == 'G') {
-                curr_command[curr_command_counter] = ' ';
-                curr_command_counter ++; 
-                continue; 
-            }
-            else {
+           if (parse_command2(curr_command) == false){
                 curr_command[curr_command_counter] = '\0';
                 //printf ("found a space!!\n");
                 process_command_options (curr_command); 
@@ -344,8 +350,11 @@ void parse_command(char * command_input) {
                 for (i = 0; i < 50; i ++){
                     curr_command [i] = '\0';
                 }
-            }
-            
+           }
+           else {
+                curr_command[curr_command_counter] = ' ';
+                curr_command_counter ++; 
+           }
         }
         command_input++;
     }
