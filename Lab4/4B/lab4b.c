@@ -51,7 +51,7 @@ void initialize_sensors (){
 }
 
 void process_command_options (char * command_input) {
-    printf ("in process command options with %s \n", command_input); 
+    //printf ("in process command options with %s \n", command_input); 
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
         if (generate_reports_flag && log_file_name != NULL){
@@ -101,11 +101,11 @@ void process_command_options (char * command_input) {
         char * ret = NULL;
         char * ret2 = NULL;
                 char * ret3 = NULL;
-        printf (" this could be period \n"); 
+        //printf (" this could be period \n"); 
         if (ret = strstr (command_input, "PERIOD=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
-            printf ("this is period \n"); 
+            //printf ("this is period \n"); 
             if (generate_reports_flag && log_file_name != NULL){
                 //printf("writing to log file for period \n"); 
                 fprintf(log_file_name, "%s\n", ret);
@@ -240,6 +240,9 @@ void turn_off (){
 
 
     mraa_gpio_close(B);
+    mraa_aio_close(T);
+
+    exit (0); 
 }
 
 static struct option long_options[] = {
@@ -290,22 +293,25 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    printf ("parsed all options\n");
+    //fflush (stdout); 
     initialize_sensors(); 
-
+    //printf ("initializzed senosrs \n");
     struct pollfd fds[1];
     fds[0].fd = STDIN_FILENO;
-    fds[0].events = POLLIN;
+    fds[0].events = POLLIN | POLLHUP | POLLERR; 
 
     while (1) {
         int ret;
         char command_input[100];
+        //printf ("in while loop\n");
         read_values(); 
-
+        //printf ("polling!\n"); 
+        fflush(stdout); 
         ret = poll(fds, 1, 0);
 
         if (ret == -1) {
             printf ("polling error \n");
-            perror ("poll");
             return 1;
         }
         else if (mraa_gpio_read(B) == 1){
@@ -330,12 +336,12 @@ bool parse_command2 (char * curr_command){
 }
 
 void parse_command(char * command_input) {
-    printf("inside parse command\n" );
+    //printf("inside parse command\n" );
     char * curr_command = (char *)malloc(50 * sizeof(char));
     int curr_command_counter = 0; 
     while(command_input != NULL && *command_input != '\n' && curr_command_counter < 50) {
         if (*command_input != ' ' && *command_input != '\n'){
-            printf ("counter is at %d, looking at char %c \n", curr_command_counter, *command_input);
+            //printf ("counter is at %d, looking at char %c \n", curr_command_counter, *command_input);
             curr_command[curr_command_counter] = *command_input;
             curr_command_counter ++; 
         }
