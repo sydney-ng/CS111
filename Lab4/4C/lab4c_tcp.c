@@ -30,12 +30,13 @@ bool generate_reports_flag = true;
 bool exit_one;
 int period = 1;
 int port_num;
-int ID; 
+char * ID; 
+int sd;
 
 //socket global variables
 struct sockaddr_in serv_addr;
 struct hostent * server;
-char * tcp_server_host = ""; 
+char * tcp_server_host = NULL; 
 /* https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm*/
 /*https://www.tutorialspoint.com/unix_sockets/socket_client_example.htm*/
 void turn_off(); 
@@ -50,7 +51,7 @@ struct tm * get_time();
 void log_ID(); 
 
 void log_ID(){
-
+	
 }
 
 void initialize (){
@@ -63,25 +64,38 @@ void initialize (){
 
 
     //initialize socket 
-    int sd;
     int connect_descriptor;
     sd = socket (AF_INET, SOCK_STREAM, 0);
     if (sd == -1){
     	fprintf(stderr, "%s\n", "couldn't initialize socket");
+    	exit(1);
     }
 
     server = gethostbyname(tcp_server_host);
     if (server == NULL) {
       fprintf(stderr,"%s\n", "couldn't get host by name");
+      exit(1);
    }
 
+   bzero((char *) &serv_addr, sizeof(serv_addr));
+   serv_addr.sin_family = AF_INET;
    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(port_num);
 
    connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
    if (connect_descriptor == -1) {
    		fprintf(stderr, "%s\n", "couldn't connect to server");
+   		exit (1); 
     }
+
+    printf ("before initializing done!\n");
+
+    char id_buf[100];
+    sprintf(id_buf, "ID=%s\n", ID);
+	//write (sd, id_buf, sizeof (id_buf)); 
+	fprintf (stdout, "sprintf worked \n"); 
+	dprintf(sd, "ID=%s\n", ID);
+
     printf ("initializing done!\n");
 }
 
@@ -89,10 +103,8 @@ void process_command_options (char * command_input) {
     //printf ("in process command options with %s \n", command_input); 
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
-        if (generate_reports_flag && log_file_name != NULL){
-            fprintf(log_file_name, "SCALE=F\n");
-                    fflush(log_file_name);
-
+        if (generate_reports_flag){
+            dprintf(sd, "SCALE=F\n");
         } 
         else {
             printf ("SCALE=F\n");
@@ -104,10 +116,8 @@ void process_command_options (char * command_input) {
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
 
-        if (generate_reports_flag && log_file_name != NULL){
-            fprintf(log_file_name, "SCALE=C\n");
-                    fflush(log_file_name);
-
+        if (generate_reports_flag){
+            dprintf(sd, "SCALE=C\n");
         } 
         else {
             printf ("SCALE=C\n");
@@ -115,20 +125,15 @@ void process_command_options (char * command_input) {
 
    }
    else if(strcmp(command_input, "STOP") == 0) {
-        if (generate_reports_flag && log_file_name != NULL){
-            fprintf(log_file_name, "STOP\n");
-                    fflush(log_file_name);
-
-        } 
-            fprintf (stdout, "%s", "STOP\n");
-            fflush(stdout);
+        if (generate_reports_flag){
+            dprintf(sd, "STOP\n");
+        }
             generate_reports_flag = false; 
     }
     else if(strcmp(command_input, "START") == 0) {
         generate_reports_flag = true; 
-        //printf ("START\n");
-        fprintf(log_file_name, "START\n");
-                fflush(log_file_name);
+        dprintf(sd, "START\n");
+        
 
     }
     else {
@@ -141,11 +146,9 @@ void process_command_options (char * command_input) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
             //printf ("this is period \n"); 
-            if (generate_reports_flag && log_file_name != NULL){
+            if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
-                fprintf(log_file_name, "%s\n", ret);
-                        fflush(log_file_name);
-
+                dprintf(sd, "%s\n", ret);
             } 
             else {
                 printf("%s\n", ret);
@@ -157,9 +160,7 @@ void process_command_options (char * command_input) {
             printf ("logfile is: %s\n", log_file_name);
             if (log_file_name != NULL){
                 //printf("writing to log file for period \n"); 
-                fprintf(log_file_name, "%s\n", ret);
-                        fflush(log_file_name);
-
+                dprintf(sd, "%s\n", ret);
             }
         }
 
@@ -168,9 +169,6 @@ void process_command_options (char * command_input) {
             fflush(stderr);
             exit (1); 
         }
-    }
-    if (generate_reports_flag) {
-
     }
 }
 
@@ -223,37 +221,25 @@ void print_report(struct tm * time_struct, float T_val){
     int sec = time_struct->tm_sec; 
     char buf[100];
 
-    if (generate_reports_flag && log_file_name != NULL){
-            fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-            fflush(log_file_name);
+    if (generate_reports_flag){
+            dprintf(sd, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+            
             //printf("writing to log file for temperature \n"); 
         }
-    else {
-        fprintf (stdout, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-
-    }
     sleep (period); 
 }
 
 void turn_off (){
     struct tm * time_struct;
 
-    fprintf (stdout, "%s \n", "OFF"); 
-    fprintf(log_file_name, "OFF\n");
-    fflush(log_file_name);
-
-
+	dprintf(sd, "OFF\n");
 
     time_struct = get_time(); 
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
 
-
-    fprintf (stdout, "%s \n", "SHUTDOWN"); 
-    fprintf(log_file_name, "%02d:%02d:%02d ", hr, min, sec);
-    fprintf(log_file_name, "SHUTDOWN\n");
-    fflush(log_file_name);
+    dprintf(sd, "%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
 
     mraa_aio_close(T);
 
@@ -296,9 +282,10 @@ int main(int argc, char **argv) {
                 generate_reports_flag = true;             	
                 break;
             case 'I':
-                ID = atoi(optarg); 
+                ID = optarg; 
                 break;
             case 'H':
+            	//tcp_server_host = (char*) malloc((strlen(optarg +1))*sizeof(char));
             	tcp_server_host = optarg; 
                 break;
             case 'L':
@@ -324,7 +311,7 @@ int main(int argc, char **argv) {
     initialize(); 
     log_ID(); 
 
-    struct pollfd fds[1];
+    /*struct pollfd fds[1];
     fds[0].fd = STDIN_FILENO;
     fds[0].events = POLLIN | POLLHUP | POLLERR; 
 
@@ -333,12 +320,11 @@ int main(int argc, char **argv) {
         char command_input[100];
         //printf ("in while loop\n");
         read_values(); 
-        //printf ("polling!\n"); 
-        fflush(stdout); 
+        printf ("polling!\n"); 
         ret = poll(fds, 1, 0);
 
         if (ret == -1) {
-            printf ("polling error \n");
+            fprintf (stderr, "polling error \n");
             return 1;
         }
         
@@ -347,7 +333,7 @@ int main(int argc, char **argv) {
             fgets(command_input, 100, stdin);
             parse_command(command_input); 
         }
-    }
+    }*/
 }
 
 bool parse_command2 (char * curr_command){
