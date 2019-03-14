@@ -1,0 +1,20 @@
+NAME: Sydney Ng
+EMAIL: sydney.ng@yahoo.com
+ID: 804794021
+SLIPDAYS: 0
+Beagle Bone Serial Number: BBGW18040172
+MAC: 2CF7F1068FAB
+
+Files Included: 
+1) my_beaglebone.jpg
+	This is a picture of me and my BeagleBone. The front side is showing so you can 	see that I have connected the temperature sensor and the button! 
+2) connected.png
+	This is a copy of my USB terminal session, showing the name and configured network 	access. 
+3) copy.png
+	This was taken from my local Desktop (not the Beaglebone) and shows that I have 	copied helloworld.c from my local machine to the Beaglebone. 
+4) build_run.png
+	This screenshot was taken from my Beaglebone terminal, where I have compiled and 	run the hello world program.
+5) Makefile
+	This will build the tarball to include all these files. I have also included 		option for clean so that it is easy to remove the tarball. 
+6) README
+	This readme contains the description of the Beaglebone Serial Number, WIFI MAC 		address, and a short description of all the files that are included in the tarbal 	for submission. 
