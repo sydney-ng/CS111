@@ -15,6 +15,11 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <netdb.h>
+
 
 #define T_PORT 1
 mraa_aio_context T;
@@ -25,11 +30,12 @@ bool generate_reports_flag = true;
 bool exit_one;
 int period = 1;
 int port_num;
+int ID; 
 
 //socket global variables
 struct sockaddr_in serv_addr;
-struct hostent *server;
-char tcp_server_host [17] = "lever.cs.ucla.edu"; 
+struct hostent * server;
+char * tcp_server_host = ""; 
 /* https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm*/
 /*https://www.tutorialspoint.com/unix_sockets/socket_client_example.htm*/
 void turn_off(); 
@@ -38,9 +44,14 @@ void process_command_options (char * command_input);
 void read_values();
 void print_report(struct tm * time_struct, float T_val); 
 void initialize (); 
-float format_values (float temp_T_val, float B_val); 
+float format_values (float temp_T_val); 
 void parse_command(char * command_input); 
 struct tm * get_time(); 
+void log_ID(); 
+
+void log_ID(){
+
+}
 
 void initialize (){
     //intialize sensors 
@@ -49,6 +60,7 @@ void initialize (){
     if (T == NULL) {
         fprintf(stderr, "Failed to initialize AIO \n");
     }
+
 
     //initialize socket 
     int sd;
@@ -63,15 +75,14 @@ void initialize (){
       fprintf(stderr,"%s\n", "couldn't get host by name");
    }
 
-    memset(&serv_addr, '0', sizeof(serv_addr)); 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port_num); 
+   bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+   serv_addr.sin_port = htons(port_num);
 
-
-    connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
-    if (connect_descriptor == -1) {
-    	fprintf(stderr, "%s\n", "couldn't connect to server");
+   connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
+   if (connect_descriptor == -1) {
+   		fprintf(stderr, "%s\n", "couldn't connect to server");
     }
+    printf ("initializing done!\n");
 }
 
 void process_command_options (char * command_input) {
@@ -244,8 +255,6 @@ void turn_off (){
     fprintf(log_file_name, "SHUTDOWN\n");
     fflush(log_file_name);
 
-
-    mraa_gpio_close(B);
     mraa_aio_close(T);
 
     exit (0); 
@@ -286,6 +295,12 @@ int main(int argc, char **argv) {
             case 'E':
                 generate_reports_flag = true;             	
                 break;
+            case 'I':
+                ID = atoi(optarg); 
+                break;
+            case 'H':
+            	tcp_server_host = optarg; 
+                break;
             case 'L':
                 log_file_name = fopen(optarg, "a");
                 break;
@@ -307,6 +322,7 @@ int main(int argc, char **argv) {
     port_num = atoi(argv[argc - 1]);
 
     initialize(); 
+    log_ID(); 
 
     struct pollfd fds[1];
     fds[0].fd = STDIN_FILENO;
@@ -325,10 +341,7 @@ int main(int argc, char **argv) {
             printf ("polling error \n");
             return 1;
         }
-        else if (mraa_gpio_read(B) == 1){
-            turn_off();
-        //this is a valid command passed
-        }
+        
         else if (fds[0].revents == POLLIN) {
             //printf ("send to parse command \n");
             fgets(command_input, 100, stdin);
