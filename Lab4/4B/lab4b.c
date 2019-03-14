@@ -190,9 +190,9 @@ float format_values (float temp_T_val, float B_val) {
     if (temp_T_val == -1 || B_val == -1) {
         fprintf(stderr, "Failed to read from a sensor \n");
     }
-    else {
-        printf ("val of T: %f, val of B: %f \n", temp2_T_val, B_val);
-    }
+    /*else {
+        //printf ("val of T: %f, val of B: %f \n", temp2_T_val, B_val);
+    }*/
 
     if (farenheit_flag == true){
         temp2_T_val = (1.8 * temp_T_val) + 32;
@@ -222,22 +222,22 @@ void turn_off (){
     struct tm * time_struct;
 
     fprintf (stdout, "%s \n", "OFF"); 
-    fprintf(log_file_name, "OFF\n");
-    fflush(log_file_name);
-
-
-
+    if (log_file_name != NULL){
+        fprintf(log_file_name, "OFF\n");
+        fflush(log_file_name); 
+    }
+    
     time_struct = get_time(); 
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
 
-
     fprintf (stdout, "%s \n", "SHUTDOWN"); 
-    fprintf(log_file_name, "%02d:%02d:%02d ", hr, min, sec);
-    fprintf(log_file_name, "SHUTDOWN\n");
-    fflush(log_file_name);
-
+    if (log_file_name != NULL){
+        fprintf(log_file_name, "%02d:%02d:%02d ", hr, min, sec);
+        fprintf(log_file_name, "SHUTDOWN\n");
+        fflush(log_file_name);
+    }
 
     mraa_gpio_close(B);
     mraa_aio_close(T);
@@ -273,13 +273,16 @@ int main(int argc, char **argv) {
                 period = atoi (optarg); 
                 break;
             case 'B':
+                generate_reports_flag = false;
                 break;
             case 'E':
+                generate_reports_flag = true;
                 break;
             case 'L':
                 log_file_name = fopen(optarg, "a");
                 break;
             case 'O':
+                turn_off();
                 break;
             case '?':
                 fprintf (stderr, "Invalid Command Passed");
@@ -293,7 +296,7 @@ int main(int argc, char **argv) {
             break;
         }
     }
-    printf ("parsed all options\n");
+    //printf ("parsed all options\n");
     //fflush (stdout); 
     initialize_sensors(); 
     //printf ("initializzed senosrs \n");
