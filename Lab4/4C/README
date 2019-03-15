@@ -1,0 +1,14 @@
+NAME: Sydney Ng
+EMAIL: sydney.ng@yahoo.com
+ID: 804794021
+SLIPDAYS: 0
+
+Files Included:
+- lab4c_tcp.c: This is the C file that will communicate with servers through a TCP connection and can report information for logging, temperature scale, frequency between reads, turning off to log files. 
+- lab4c_tls.c: This is the C file that is similar to lab4c_tcp.c. However, it will communicate with servers through a TLS connection for reporting information on logging, temperature scale, frequency between reads, turning off to log files. 
+- Makefile: This Makefile will build the program. It can create a tarball used for submission with ‘dist’, and remove files generated from ‘dist’ with the ‘clean ‘command.
+- README: This README contains the description of the Beaglebone Serial Number, WIFI MAC address, and a short description of all the files that are included in the tarball	for submission.
+
+Notes:
+- Usage of localtime() was based off online documentation of TutorialsPoint.com, an open online resource for teaching the basics of how to use different C functions (including localtime()). The URL is: https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm 
+- The usage of connecting to servers and using sockets was based off the same online documentation on TutorialsPoint.com URL: https://www.tutorialspoint.com/unix_sockets/socket_client_example.htm
