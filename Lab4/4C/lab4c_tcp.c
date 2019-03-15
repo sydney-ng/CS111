@@ -29,8 +29,8 @@ bool farenheit_flag = true;
 bool generate_reports_flag = true; 
 bool exit_one;
 int period = 1;
-int port_num;
-char * ID; 
+int port_num = -1;
+char * ID = NULL; 
 int sd;
 
 //socket global variables
@@ -51,7 +51,12 @@ struct tm * get_time();
 void log_ID(); 
 
 void log_ID(){
-	
+	struct tm * time_struct;
+
+    time_struct = get_time(); 
+	char buf[100];
+    sprintf(buf, "ID=%s\n", ID);
+	dprintf(sd, "ID=%s\n", ID);
 }
 
 void initialize (){
@@ -87,27 +92,19 @@ void initialize (){
    		fprintf(stderr, "%s\n", "couldn't connect to server");
    		exit (1); 
     }
-
-    printf ("before initializing done!\n");
-
-    char id_buf[100];
-    sprintf(id_buf, "ID=%s\n", ID);
-	//write (sd, id_buf, sizeof (id_buf)); 
-	fprintf (stdout, "sprintf worked \n"); 
-	dprintf(sd, "ID=%s\n", ID);
-
-    printf ("initializing done!\n");
+    printf ("finisehd initializing \n");
 }
 
 void process_command_options (char * command_input) {
-    //printf ("in process command options with %s \n", command_input); 
+    char buf[100];
+    
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
+		sprintf(buf, "%s\n", "SCALE=F");
+        dprintf(sd, "%s\n", "SCALE=F");
         if (generate_reports_flag){
-            dprintf(sd, "SCALE=F\n");
-        } 
-        else {
-            printf ("SCALE=F\n");
+        	fprintf(log_file_name, "%s\n", "SCALE=F");
+        	fflush(log_file_name);
         }
     }
     else if(strcmp(command_input, "OFF") == 0) {
@@ -115,53 +112,58 @@ void process_command_options (char * command_input) {
     }
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
-
+		sprintf(buf, "%s\n", "SCALE=C");
+        dprintf(sd, "%s\n", "SCALE=C");
         if (generate_reports_flag){
-            dprintf(sd, "SCALE=C\n");
-        } 
-        else {
-            printf ("SCALE=C\n");
-        }
-
+        	fprintf(log_file_name, "%s\n", "SCALE=C");
+        	fflush(log_file_name);
+    	}
    }
    else if(strcmp(command_input, "STOP") == 0) {
+        sprintf(buf, "%s\n", "STOP");
+        dprintf(sd, "%s\n", "STOP");
         if (generate_reports_flag){
-            dprintf(sd, "STOP\n");
+            fprintf(log_file_name, "%s\n", "STOP");
+        	fflush(log_file_name);
         }
-            generate_reports_flag = false; 
+        generate_reports_flag = false; 
     }
     else if(strcmp(command_input, "START") == 0) {
         generate_reports_flag = true; 
-        dprintf(sd, "START\n");
-        
+        sprintf(buf, "%s\n", "START");
+        dprintf(sd, "%s\n", "START");
+        fprintf(log_file_name, "%s\n", "START");
+        fflush(log_file_name);
+      }
 
-    }
     else {
         //printf ("this is not a valid option yet\n");
         char * ret = NULL;
         char * ret2 = NULL;
-                char * ret3 = NULL;
+         char * ret3 = NULL;
         //printf (" this could be period \n"); 
         if (ret = strstr (command_input, "PERIOD=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
+            sprintf(buf, "%s\n", ret);
+       		dprintf(sd, "%s\n", ret);
             //printf ("this is period \n"); 
             if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
-                dprintf(sd, "%s\n", ret);
-            } 
-            else {
-                printf("%s\n", ret);
-            }
+				fprintf(log_file_name, "%s\n", ret);
+        		fflush(log_file_name);            
+        	}
         }
 
         else if (ret = strstr (command_input, "LOG")) {
-            printf("%s\n", ret);
-            printf ("logfile is: %s\n", log_file_name);
-            if (log_file_name != NULL){
+            sprintf(buf, "%s\n", ret);
+       		dprintf(sd, "%s\n", ret);
+            //printf ("this is period \n"); 
+            if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
-                dprintf(sd, "%s\n", ret);
-            }
+				fprintf(log_file_name, "%s\n", ret);
+        		fflush(log_file_name);            
+        	}
         }
 
         else {
@@ -188,58 +190,52 @@ void read_values(){
 
     time_struct = get_time (); 
     temp_T_val = mraa_aio_read(T);
-    
+    printf ("in read values\n");
     T_val = format_values (temp_T_val); 
      
     print_report (time_struct, T_val);
 }
 
-float format_values (float temp_T_val) {
+float format_values (float temperature) {
     const int termistor_val = 4275;            
-    float R0 = 100000.0; 
-    float R = 1023.0/(temp_T_val-1.0);
-    R = R * R0; 
-    float temp2_T_val; 
-    temp2_T_val = 1.0/(log(R/R0)/termistor_val+1/298.15)-273.15; // convert to temperature via datasheet
-
-    if (temp_T_val == -1) {
-        fprintf(stderr, "Failed to read from temperature sensor \n");
-    }
-    else {
-        printf ("val of T: %f \n", temp2_T_val);
-    }
-
-    if (farenheit_flag == true){
-        temp2_T_val = (1.8 * temp_T_val) + 32;
-    }
-   return temp2_T_val; 
+	float R0 = 100000.0;
+	float R = 1023.0/(temperature) - 1.0;
+	R = R * R0;
+	float t2 = 1.0/(log(R/R0)/termistor_val + 1/298.15) - 273.15; 
+	if (farenheit_flag == true) { //convert temperature to F
+		t2 = (t2 * 1.8) + 32; 
+	}
+	printf ("temp reading is: %f\n", t2);
+	fflush(stdout); 
+	return t2;  
 }
 
 void print_report(struct tm * time_struct, float T_val){
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
-    char buf[100];
 
-    if (generate_reports_flag){
-            dprintf(sd, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-            
-            //printf("writing to log file for temperature \n"); 
-        }
+    char buf[100];
+	sprintf(buf, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+    dprintf(sd, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+    fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+    fflush(log_file_name);
+
     sleep (period); 
 }
 
 void turn_off (){
     struct tm * time_struct;
 
-	dprintf(sd, "OFF\n");
-
     time_struct = get_time(); 
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
-
-    dprintf(sd, "%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    char buf [500];
+    sprintf(buf, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    dprintf(sd, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    fflush(log_file_name);
 
     mraa_aio_close(T);
 
@@ -258,7 +254,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}};
 
 int main(int argc, char **argv) {
-
+	printf ("YOOOO IM IN MAIN BEGINNING \n");
      while (1){
         int c;
         int option_index = 0;
@@ -289,7 +285,11 @@ int main(int argc, char **argv) {
             	tcp_server_host = optarg; 
                 break;
             case 'L':
+           		printf ("optarg for log is %s \n", optarg); 
                 log_file_name = fopen(optarg, "a");
+        		if (log_file_name == NULL){
+        		}
+                printf ("LOGFILE NAME IS : %s\n", log_file_name); 
                 break;
             case 'O':
             	turn_off(); 
@@ -300,7 +300,9 @@ int main(int argc, char **argv) {
                 exit (1);
                 break;
             default:
+            	exit(1);
                 break;
+
         }
          if (c == -1){
             break;
@@ -308,10 +310,16 @@ int main(int argc, char **argv) {
     }
     port_num = atoi(argv[argc - 1]);
 
+    if (port_num == -1 || log_file_name == NULL || tcp_server_host == NULL || ID == NULL) {
+    	fprintf (stderr, "not all options were passed in\n"); 
+    }
+    printf ("before initialize\n");
     initialize(); 
+    printf ("after initialize\n");
+
     log_ID(); 
 
-    /*struct pollfd fds[1];
+    struct pollfd fds[1];
     fds[0].fd = STDIN_FILENO;
     fds[0].events = POLLIN | POLLHUP | POLLERR; 
 
@@ -333,7 +341,7 @@ int main(int argc, char **argv) {
             fgets(command_input, 100, stdin);
             parse_command(command_input); 
         }
-    }*/
+    }
 }
 
 bool parse_command2 (char * curr_command){
