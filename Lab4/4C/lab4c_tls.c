@@ -36,7 +36,13 @@ int sd;
 //socket global variables
 struct sockaddr_in serv_addr;
 struct hostent * server;
-char * tcp_server_host = NULL; 
+char * tcp_server_host = NULL;
+
+//global variables for SSL
+const SSL_METHOD *ssl_method;
+SSL_CTX *ssl_context;
+SSL *ssl;
+
 /* https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm*/
 /*https://www.tutorialspoint.com/unix_sockets/socket_client_example.htm*/
 void turn_off(); 
@@ -53,20 +59,34 @@ void log_ID();
 void log_ID(){
 	char buf[100];
     sprintf(buf, "ID=%s\n", ID);
-	dprintf(sd, "ID=%s\n", ID);
+	SSL_write(ssl, buf, strlen(buf));
 	if (generate_reports_flag == true){
 		fprintf(log_file_name, "ID=%s\n", ID);
         fflush(log_file_name);
     }
 }
 
+void initialize_SSL(){
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    ssl_method = TLSv1_client_method(); 
+    ssl_context = SSL_CTX_new(ssl_method);
+    ssl = SSL_new(ssl_context);
+    printf ("ssl has been initialized \n");
+}
+
 void initialize (){
+    initialize_SSL(); 
+
     //intialize sensors 
     T = mraa_aio_init(T_PORT);
 
     if (T == NULL) {
         fprintf(stderr, "Failed to initialize AIO \n");
     }
+
+
     //initialize socket 
     int connect_descriptor;
     sd = socket (AF_INET, SOCK_STREAM, 0);
@@ -81,18 +101,28 @@ void initialize (){
       exit(1);
    }
 
-   printf ("initialized host name \n");
    bzero((char *) &serv_addr, sizeof(serv_addr));
    serv_addr.sin_family = AF_INET;
    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(port_num);
 
-   printf ("about to connect \n");
+   printf ("before connecting \n");
    connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
-   printf ("connect descriptor is %d\n", connect_descriptor);
    if (connect_descriptor == -1) {
    		fprintf(stderr, "%s\n", "couldn't connect to server");
    		exit (1); 
+    }
+    printf ("after connecting\n");
+
+    int ssl_fd_ret;
+    int ssl_connect_ret;
+    ssl_fd_ret = SSL_set_fd (ssl, sd); 
+    if (ssl_fd_ret == 0){
+        fprintf (stderr,"%s\n", "couldn't set SSL FD");
+    } 
+    ssl_connect_ret = SSL_connect (ssl); 
+    if (ssl_connect_ret == 0){
+           fprintf (stderr,"%s\n", "couldn't connect SSL");
     }
     printf ("finisehd initializing \n");
 }
@@ -103,7 +133,7 @@ void process_command_options (char * command_input) {
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
 		sprintf(buf, "%s\n", "SCALE=F");
-        dprintf(sd, "%s\n", "SCALE=F");
+        SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
         	fprintf(log_file_name, "%s\n", "SCALE=F");
         	fflush(log_file_name);
@@ -115,7 +145,7 @@ void process_command_options (char * command_input) {
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
 		sprintf(buf, "%s\n", "SCALE=C");
-        dprintf(sd, "%s\n", "SCALE=C");
+        SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
         	fprintf(log_file_name, "%s\n", "SCALE=C");
         	fflush(log_file_name);
@@ -123,7 +153,7 @@ void process_command_options (char * command_input) {
    }
    else if(strcmp(command_input, "STOP") == 0) {
         sprintf(buf, "%s\n", "STOP");
-        dprintf(sd, "%s\n", "STOP");
+        SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
             fprintf(log_file_name, "%s\n", "STOP");
         	fflush(log_file_name);
@@ -133,7 +163,7 @@ void process_command_options (char * command_input) {
     else if(strcmp(command_input, "START") == 0) {
         generate_reports_flag = true; 
         sprintf(buf, "%s\n", "START");
-        dprintf(sd, "%s\n", "START");
+        SSL_write(ssl, buf, strlen(buf));
         fprintf(log_file_name, "%s\n", "START");
         fflush(log_file_name);
       }
@@ -148,7 +178,7 @@ void process_command_options (char * command_input) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
             sprintf(buf, "%s\n", ret);
-       		dprintf(sd, "%s\n", ret);
+       		SSL_write(ssl, buf, strlen(buf));
             //printf ("this is period \n"); 
             if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
@@ -159,7 +189,7 @@ void process_command_options (char * command_input) {
 
         else if (ret = strstr (command_input, "LOG")) {
             sprintf(buf, "%s\n", ret);
-       		dprintf(sd, "%s\n", ret);
+       		SSL_write(ssl, buf, strlen(buf));
             //printf ("this is period \n"); 
             if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
@@ -213,7 +243,7 @@ void print_report(struct tm * time_struct, float T_val){
 
     char buf[100];
 	sprintf(buf, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-    dprintf(sd, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+    SSL_write(ssl, buf, strlen(buf));
     fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
     fflush(log_file_name);
 
@@ -227,9 +257,9 @@ void turn_off (){
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
-    char buf [500];
+    char buf [100];
     sprintf(buf, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
-    dprintf(sd, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    SSL_write(ssl, buf, strlen(buf));
     fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     fflush(log_file_name);
 
@@ -273,21 +303,18 @@ int main(int argc, char **argv) {
                 generate_reports_flag = true;             	
                 break;
             case 'I':
+                printf ("checking id parse\n");
                 ID = optarg; 
                 break;
             case 'H':
             	//tcp_server_host = (char*) malloc((strlen(optarg +1))*sizeof(char));
             	tcp_server_host = optarg; 
-            	if (tcp_server_host == NULL){
-            		fprintf (stderr, "initial parse couldn't retrieve host name\n");
-            	}
                 break;
             case 'L':
-           		printf ("optarg for log is %s \n", optarg); 
                 log_file_name = fopen(optarg, "a");
         		if (log_file_name == NULL){
         		}
-                printf ("LOGFILE NAME IS : %s\n", log_file_name); 
+                printf ("checked logs\n");
                 break;
             case 'O':
             	turn_off(); 
@@ -299,11 +326,14 @@ int main(int argc, char **argv) {
                 break;
             default:
                 break;
+
         }
          if (c == -1){
             break;
         }
     }
+    fprintf (stdout, "parsed options \n");
+    fflush(stdout);
     port_num = atoi(argv[argc - 1]);
 
     if (port_num == -1 || log_file_name == NULL || tcp_server_host == NULL || ID == NULL) {
@@ -320,8 +350,6 @@ int main(int argc, char **argv) {
     fds[0].events = POLLIN; 
 
     while (1) {
-    	printf ("in while loop\n");
-        FILE* data_received;
         int ret;
         char command_input[100];
         //printf ("in while loop\n");
@@ -336,8 +364,8 @@ int main(int argc, char **argv) {
         
         else if (fds[0].revents == POLLIN) {
             //printf ("send to parse command \n");
-            data_received = fdopen(sd, "r");
-            fgets(command_input, 100, data_received);
+            //fgets(command_input, 100, stdin);
+            SSL_read(ssl, command_input, 100);
             parse_command(command_input); 
         }
     }
