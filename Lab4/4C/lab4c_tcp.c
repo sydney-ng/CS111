@@ -334,7 +334,7 @@ int main(int argc, char **argv) {
         char command_input[100];
         //printf ("in while loop\n");
         read_values(); 
-        printf ("polling!\n"); 
+        //printf ("polling!\n"); 
         ret = poll(fds, 1, 0);
 
         if (ret == -1) {
