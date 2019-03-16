@@ -55,7 +55,8 @@ void log_ID(){
     sprintf(buf, "ID=%s\n", ID);
 	dprintf(sd, "ID=%s\n", ID);
 	if (generate_reports_flag == true){
-		fprintf(log_file_name, "ID=%s\n", ID);
+		        fflush(log_file_name);
+	fprintf(log_file_name, "ID=%s\n", ID);
         fflush(log_file_name);
     }
 }
@@ -81,20 +82,20 @@ void initialize (){
       exit(1);
    }
 
-   printf ("initialized host name \n");
+   //printf ("initialized host name \n");
    bzero((char *) &serv_addr, sizeof(serv_addr));
    serv_addr.sin_family = AF_INET;
    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(port_num);
 
-   printf ("about to connect \n");
+   //printf ("about to connect \n");
    connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
-   printf ("connect descriptor is %d\n", connect_descriptor);
+   //printf ("connect descriptor is %d\n", connect_descriptor);
    if (connect_descriptor == -1) {
    		fprintf(stderr, "%s\n", "couldn't connect to server");
    		exit (1); 
     }
-    printf ("finisehd initializing \n");
+    //printf ("finisehd initializing \n");
 }
 
 void process_command_options (char * command_input) {
@@ -102,10 +103,11 @@ void process_command_options (char * command_input) {
     
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
-		sprintf(buf, "%s\n", "SCALE=F");
-        dprintf(sd, "%s\n", "SCALE=F");
+		//sprintf(buf, "%s\n", "SCALE=F");
+        //dprintf(sd, "%s\n", "SCALE=F");
         if (generate_reports_flag){
-        	fprintf(log_file_name, "%s\n", "SCALE=F");
+        	        fflush(log_file_name);
+fprintf(log_file_name, "%s\n", "SCALE=F");
         	fflush(log_file_name);
         }
     }
@@ -114,27 +116,30 @@ void process_command_options (char * command_input) {
     }
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
-		sprintf(buf, "%s\n", "SCALE=C");
-        dprintf(sd, "%s\n", "SCALE=C");
+		//sprintf(buf, "%s\n", "SCALE=C");
+        //dprintf(sd, "%s\n", "SCALE=C");
         if (generate_reports_flag){
-        	fprintf(log_file_name, "%s\n", "SCALE=C");
+        	        fflush(log_file_name);
+fprintf(log_file_name, "%s\n", "SCALE=C");
         	fflush(log_file_name);
     	}
    }
    else if(strcmp(command_input, "STOP") == 0) {
-        sprintf(buf, "%s\n", "STOP");
-        dprintf(sd, "%s\n", "STOP");
+        //sprintf(buf, "%s\n", "STOP");
+        //dprintf(sd, "%s\n", "STOP");
         if (generate_reports_flag){
-            fprintf(log_file_name, "%s\n", "STOP");
+                    fflush(log_file_name);
+fprintf(log_file_name, "%s\n", "STOP");
         	fflush(log_file_name);
         }
         generate_reports_flag = false; 
     }
     else if(strcmp(command_input, "START") == 0) {
         generate_reports_flag = true; 
-        sprintf(buf, "%s\n", "START");
-        dprintf(sd, "%s\n", "START");
-        fprintf(log_file_name, "%s\n", "START");
+        //sprintf(buf, "%s\n", "START");
+        //dprintf(sd, "%s\n", "START");
+                fflush(log_file_name);
+fprintf(log_file_name, "%s\n", "START");
         fflush(log_file_name);
       }
 
@@ -147,25 +152,26 @@ void process_command_options (char * command_input) {
         if (ret = strstr (command_input, "PERIOD=")) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
-            sprintf(buf, "%s\n", ret);
-       		dprintf(sd, "%s\n", ret);
+            //sprintf(buf, "%s\n", ret);
+       		//dprintf(sd, "%s\n", ret);
             //printf ("this is period \n"); 
             if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
-				fprintf(log_file_name, "%s\n", ret);
+				        fflush(log_file_name);
+fprintf(log_file_name, "%s\n", ret);
         		fflush(log_file_name);            
         	}
         }
 
         else if (ret = strstr (command_input, "LOG")) {
-            sprintf(buf, "%s\n", ret);
-       		dprintf(sd, "%s\n", ret);
+            //sprintf(buf, "%s\n", ret);
+       		//dprintf(sd, "%s\n", ret);
             //printf ("this is period \n"); 
-            if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
+				fflush(log_file_name);
 				fprintf(log_file_name, "%s\n", ret);
         		fflush(log_file_name);            
-        	}
+        
         }
     }
 }
@@ -186,7 +192,7 @@ void read_values(){
 
     time_struct = get_time (); 
     temp_T_val = mraa_aio_read(T);
-    printf ("in read values\n");
+    //printf ("in read values\n");
     T_val = format_values (temp_T_val); 
      
     print_report (time_struct, T_val);
@@ -201,8 +207,8 @@ float format_values (float temperature) {
 	if (farenheit_flag == true) { //convert temperature to F
 		t2 = (t2 * 1.8) + 32; 
 	}
-	printf ("temp reading is: %f\n", t2);
-	fflush(stdout); 
+	//printf ("temp reading is: %f\n", t2);
+	//fflush(stdout); 
 	return t2;  
 }
 
@@ -214,7 +220,8 @@ void print_report(struct tm * time_struct, float T_val){
     char buf[100];
 	sprintf(buf, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
     dprintf(sd, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
-    fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
+            fflush(log_file_name);
+fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
     fflush(log_file_name);
 
     sleep (period); 
@@ -230,7 +237,8 @@ void turn_off (){
     char buf [500];
     sprintf(buf, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     dprintf(sd, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
-    fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    fflush(log_file_name);
+	fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     fflush(log_file_name);
 
     mraa_aio_close(T);
@@ -249,7 +257,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}};
 
 int main(int argc, char **argv) {
-	printf ("YOOOO IM IN MAIN BEGINNING \n");
+	//printf ("YOOOO IM IN MAIN BEGINNING \n");
      while (1){
         int c;
         int option_index = 0;
@@ -283,11 +291,11 @@ int main(int argc, char **argv) {
             	}
                 break;
             case 'L':
-           		printf ("optarg for log is %s \n", optarg); 
+           		//printf ("optarg for log is %s \n", optarg); 
                 log_file_name = fopen(optarg, "a");
         		if (log_file_name == NULL){
         		}
-                printf ("LOGFILE NAME IS : %s\n", log_file_name); 
+                //printf ("LOGFILE NAME IS : %s\n", log_file_name); 
                 break;
             case 'O':
             	turn_off(); 
@@ -311,7 +319,7 @@ int main(int argc, char **argv) {
     }
 
     initialize(); 
-    printf ("after initialize\n");
+    //printf ("after initialize\n");
 
     log_ID(); 
 
@@ -320,7 +328,7 @@ int main(int argc, char **argv) {
     fds[0].events = POLLIN; 
 
     while (1) {
-    	printf ("in while loop\n");
+    	//printf ("in while loop\n");
         FILE* data_received;
         int ret;
         char command_input[100];

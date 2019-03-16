@@ -61,7 +61,8 @@ void log_ID(){
     sprintf(buf, "ID=%s\n", ID);
 	SSL_write(ssl, buf, strlen(buf));
 	if (generate_reports_flag == true){
-		fprintf(log_file_name, "ID=%s\n", ID);
+		fflush(log_file_name);
+        fprintf(log_file_name, "ID=%s\n", ID);
         fflush(log_file_name);
     }
 }
@@ -106,7 +107,7 @@ void initialize (){
    bcopy((char*)server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(port_num);
 
-   printf ("before connecting \n");
+   //printf ("before connecting \n");
    connect_descriptor = connect (sd, (struct sockaddr*) &serv_addr, sizeof(serv_addr)); 
    if (connect_descriptor == -1) {
    		fprintf(stderr, "%s\n", "couldn't connect to server");
@@ -133,9 +134,10 @@ void process_command_options (char * command_input) {
     if(strcmp(command_input, "SCALE=F") == 0) {
         farenheit_flag = true;
 		sprintf(buf, "%s\n", "SCALE=F");
-        SSL_write(ssl, buf, strlen(buf));
+        //SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
-        	fprintf(log_file_name, "%s\n", "SCALE=F");
+        	fflush(log_file_name);
+            fprintf(log_file_name, "%s\n", "SCALE=F");
         	fflush(log_file_name);
         }
     }
@@ -145,16 +147,19 @@ void process_command_options (char * command_input) {
    else if(strcmp("command_input", "SCALE=C") == 0) {
         farenheit_flag = false; 
 		sprintf(buf, "%s\n", "SCALE=C");
-        SSL_write(ssl, buf, strlen(buf));
+        //SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
+                    fflush(log_file_name);
         	fprintf(log_file_name, "%s\n", "SCALE=C");
         	fflush(log_file_name);
     	}
    }
    else if(strcmp(command_input, "STOP") == 0) {
         sprintf(buf, "%s\n", "STOP");
-        SSL_write(ssl, buf, strlen(buf));
+        //SSL_write(ssl, buf, strlen(buf));
         if (generate_reports_flag){
+                    fflush(log_file_name);
+
             fprintf(log_file_name, "%s\n", "STOP");
         	fflush(log_file_name);
         }
@@ -163,7 +168,9 @@ void process_command_options (char * command_input) {
     else if(strcmp(command_input, "START") == 0) {
         generate_reports_flag = true; 
         sprintf(buf, "%s\n", "START");
-        SSL_write(ssl, buf, strlen(buf));
+                fflush(log_file_name);
+
+        //SSL_write(ssl, buf, strlen(buf));
         fprintf(log_file_name, "%s\n", "START");
         fflush(log_file_name);
       }
@@ -178,7 +185,9 @@ void process_command_options (char * command_input) {
             ret2 = strstr (command_input, "=");
             period = atoi(ret2+1); 
             sprintf(buf, "%s\n", ret);
-       		SSL_write(ssl, buf, strlen(buf));
+                    fflush(log_file_name);
+
+       		//SSL_write(ssl, buf, strlen(buf));
             //printf ("this is period \n"); 
             if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
@@ -189,13 +198,15 @@ void process_command_options (char * command_input) {
 
         else if (ret = strstr (command_input, "LOG")) {
             sprintf(buf, "%s\n", ret);
-       		SSL_write(ssl, buf, strlen(buf));
+       		//SSL_write(ssl, buf, strlen(buf));    
+
             //printf ("this is period \n"); 
-            if (generate_reports_flag){
+            //if (generate_reports_flag){
                 //printf("writing to log file for period \n"); 
-				fprintf(log_file_name, "%s\n", ret);
+				fflush(log_file_name);
+                fprintf(log_file_name, "%s\n", ret);
         		fflush(log_file_name);            
-        	}
+        	//}
         }
     }
 }
@@ -216,7 +227,7 @@ void read_values(){
 
     time_struct = get_time (); 
     temp_T_val = mraa_aio_read(T);
-    printf ("in read values\n");
+    //printf ("in read values\n");
     T_val = format_values (temp_T_val); 
      
     print_report (time_struct, T_val);
@@ -231,8 +242,8 @@ float format_values (float temperature) {
 	if (farenheit_flag == true) { //convert temperature to F
 		t2 = (t2 * 1.8) + 32; 
 	}
-	printf ("temp reading is: %f\n", t2);
-	fflush(stdout); 
+	//printf ("temp reading is: %f\n", t2);
+	//fflush(stdout); 
 	return t2;  
 }
 
@@ -258,8 +269,9 @@ void turn_off (){
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
     char buf [100];
-    sprintf(buf, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    sprintf(buf, "%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     SSL_write(ssl, buf, strlen(buf));
+                    fflush(log_file_name);
     fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     fflush(log_file_name);
 
@@ -279,7 +291,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}};
 
 int main(int argc, char **argv) {
-	printf ("YOOOO IM IN MAIN BEGINNING \n");
+	//printf ("YOOOO IM IN MAIN BEGINNING \n");
      while (1){
         int c;
         int option_index = 0;
@@ -303,7 +315,7 @@ int main(int argc, char **argv) {
                 generate_reports_flag = true;             	
                 break;
             case 'I':
-                printf ("checking id parse\n");
+                //printf ("checking id parse\n");
                 ID = optarg; 
                 break;
             case 'H':
@@ -314,7 +326,7 @@ int main(int argc, char **argv) {
                 log_file_name = fopen(optarg, "a");
         		if (log_file_name == NULL){
         		}
-                printf ("checked logs\n");
+                //printf ("checked logs\n");
                 break;
             case 'O':
             	turn_off(); 
@@ -332,7 +344,7 @@ int main(int argc, char **argv) {
             break;
         }
     }
-    fprintf (stdout, "parsed options \n");
+    //fprintf (stdout, "parsed options \n");
     fflush(stdout);
     port_num = atoi(argv[argc - 1]);
 
@@ -352,7 +364,7 @@ int main(int argc, char **argv) {
     while (1) {
         int ret;
         char command_input[100];
-        //printf ("in while loop\n");
+        printf ("in while loop\n");
         read_values(); 
         printf ("polling!\n"); 
         ret = poll(fds, 1, 0);
