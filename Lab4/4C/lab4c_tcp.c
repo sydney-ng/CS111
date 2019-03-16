@@ -228,17 +228,19 @@ fprintf(log_file_name, "%02d:%02d:%02d %0.1f\n", hr, min, sec, T_val);
 }
 
 void turn_off (){
+    fprintf (stdout, "turning off \n"); 
+
     struct tm * time_struct;
 
     time_struct = get_time(); 
     int hr = time_struct->tm_hour;
     int min = time_struct->tm_min;
     int sec = time_struct->tm_sec; 
-    char buf [500];
-    sprintf(buf, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
-    dprintf(sd, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
-    fflush(log_file_name);
-	fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
+    char buf [100];
+	sprintf(buf, "%02d:%02d:%02d %s\n", hr, min, sec, "SHUTDOWN");
+    dprintf(sd, "%02d:%02d:%02d %s\n", hr, min, sec, "SHUTDOWN");
+                    fflush(log_file_name);
+    fprintf(log_file_name, "OFF\n%02d:%02d:%02d SHUTDOWN\n", hr, min, sec);
     fflush(log_file_name);
 
     mraa_aio_close(T);
@@ -334,7 +336,7 @@ int main(int argc, char **argv) {
         char command_input[100];
         //printf ("in while loop\n");
         read_values(); 
-        //printf ("polling!\n"); 
+        printf ("polling!\n"); 
         ret = poll(fds, 1, 0);
 
         if (ret == -1) {
